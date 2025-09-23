@@ -1326,18 +1326,18 @@
             box-sizing: border-box;
         }
         #live-tv-button .btn-label {
-            font-size: 9px; /* small but legible */
-            line-height: 1;
-            text-transform: none;
-            color: var(--primary-color);
-            -webkit-font-smoothing: antialiased;
-            white-space: normal;       /* allow wrapping */
-            text-align: center;       /* center two lines */
-            display: inline-block;
-            padding: 0;
-            margin: 0;
-            max-width: 100%;
-        }
+            font-size: 8px; /* even smaller */
+             line-height: 1;
+             text-transform: none;
+             color: var(--primary-color);
+             -webkit-font-smoothing: antialiased;
+             white-space: normal;       /* allow wrapping */
+             text-align: center;       /* center text */
+             display: block;           /* ensure centering within the flex button */
+             padding: 0;
+             margin: 0;
+             max-width: 100%;
+         }
     </style>
     <style>
         /* Header logo to replace title + home button */
@@ -1359,7 +1359,7 @@
     <!-- Password gate (blocks everything until correct PIN) -->
     <div id="pw-gate" aria-modal="true" role="dialog" aria-label="Site password gate">
         <div class="card" role="document">
-            <h2>Welcome to </h2>
+            <h2>Welcome to QNB</h2>
             <div class="sub">Enter your 4-digit PIN to continue</div>
             <input id="pw-input" type="password" inputmode="numeric" autocomplete="one-time-code" aria-label="PIN input" placeholder="●●●●" maxlength="6" />
             <div class="actions">
@@ -1373,7 +1373,7 @@
     <div id="loading-overlay">
         <div id="loading-content">
             <div id="loading-spinner"></div>
-            <h1 id="loading-title"></h1>
+            <h1 id="loading-title">QNB</h1>
             <p id="loading-subtitle">Allow Pop-ups for Cloaking...</p>
         </div>
     </div>
@@ -1386,7 +1386,7 @@
     </video>
     <div id="dark-mode-overlay"></div>
     <div class="top-bar">
-        <img id="header-logo" src="/qnblogo.png" alt=" " style="height:64px;object-fit:contain;">
+        <img id="header-logo" src="/qnblogo.png.png" alt="QNB" style="height:64px;object-fit:contain;">
     </div>
 
     <div id="client-visitor-counter">
@@ -1430,8 +1430,8 @@
     <!-- Credits button removed -->
 
     <!-- Settings button under Credits -->
-    <button id="settings-button" title="Settings">
-        <img src="/settings.png" alt="Settings">
+    <button id="settings-button" title="Settings" aria-label="Settings" style="font-family: 'Press Start 2P', monospace; font-size:8px; line-height:1; color:#000; background:#ffffff; border:2px solid rgba(0,0,0,0.08); border-radius:10px; width:64px; height:32px; cursor:pointer; z-index:1001; display:inline-flex; align-items:center; justify-content:center; padding:0 6px;">
+        Settings
     </button>
 
     <div id="news-sidebar">
