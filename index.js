@@ -71,17 +71,8 @@ filteredGames.slice(0, 6).forEach(game => {
 /* ...existing code... */
 
 /* ...existing code... */
-        // Interstellar Button
-        const interstellarButton = document.getElementById('interstellar-button');
-        // If the toolbar button exists (legacy), wire it up; otherwise search will handle the action.
-        if (interstellarButton) {
-            interstellarButton.addEventListener('click', () => {
-                const access = localStorage.getItem('qnb_unlocked_v1');
-                if (access === 'full') {
-                    openInAboutBlankStealth('https://interstellar-pus6.vercel.app');
-                } else {
-                    openGameOverlay('https://interstellar-pus6.vercel.app');
-                }
-            });
-        }
+        closeGameBtn.addEventListener('click', closeGameOverlay);
+        refreshGameBtn.addEventListener('click', refreshGame);
+        
+        const openNewTabBtn = document.getElementById('open-new-tab-btn');
 /* ...existing code... */
