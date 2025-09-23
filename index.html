@@ -466,7 +466,7 @@
 
         #settings-button {
             position: fixed;
-            top: 120px; /* moved up to occupy previous Credits position */
+            top: 70px; /* moved up to fill the higher toolbar slot */
             right: 20px;
             background: transparent;
             border: none;
@@ -869,6 +869,13 @@
             box-sizing: border-box;
         }
 
+        /* Override the individual control colors to match red/yellow/green traffic buttons */
+        #close-game-btn { background: #ff5c5c; border-color: rgba(0,0,0,0.6); }
+        #refresh-game-btn { background: #ffd66b; border-color: rgba(0,0,0,0.6); }
+        #open-new-tab-btn { background: #7de26a; border-color: rgba(0,0,0,0.6); }
+        /* Make inner content visually minimal (no images) */
+        #game-controls button .ctrl-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
+
         #close-game-btn {
             font-size: 30px;
             padding: 0; 
@@ -1049,7 +1056,7 @@
         }
 
         /* Ensure Interstellar button is hidden by default and only shown by JS (keypress) */
-        #interstellar-button { display: none; }
+        #interstellar-button { display: flex; align-items: center; justify-content: center; }
 
         #image-modal {
             position: fixed;
@@ -1244,6 +1251,17 @@
         #pw-error { color: #ff6b6b; margin-top:8px; min-height:18px; font-size:0.95em; text-align:center; }
     </style>
     <style>
+        /* Top alert banner */
+        #popup-banner{
+            position:fixed;top:0;left:0;right:0;z-index:10002;
+            background:#111;border-bottom:3px solid var(--primary-color);
+            color:var(--text-grey);display:flex;align-items:center;justify-content:center;
+            gap:12px;padding:10px 12px;font-family:Press Start 2P, monospace;font-size:13px;
+        }
+        #popup-banner button{position:absolute;right:10px;top:8px;background:transparent;border:2px solid var(--primary-color);color:var(--primary-color);padding:6px 8px;border-radius:8px;cursor:pointer;}
+        #popup-banner.hidden{transform:translateY(-120%);transition:transform .28s ease;}
+    </style>
+    <style>
         .wallpaper-thumb {
             display: inline-block;
             border: 2px solid var(--primary-color);
@@ -1273,8 +1291,71 @@
         .wallpaper-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 6px; }
         .wallpaper-strip:focus { outline: 2px solid rgba(255,255,255,0.12); border-radius: 8px; }
     </style>
+    <style>
+        /* Assets panel */
+        #assets-panel {
+            position: fixed;
+            left: 20px;
+            top: 120px;
+            width: 260px;
+            max-height: 60vh;
+            overflow: auto;
+            background: rgba(0,0,0,0.85);
+            border: 3px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 3000;
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+        }
+        #assets-panel h3 { margin: 0 0 8px 0; font-size: 1rem; color: var(--primary-color); }
+        #assets-panel a { display: block; color: var(--primary-color); text-decoration: none; padding: 6px 4px; border-radius: 6px; }
+        #assets-panel a:hover { background: rgba(255,255,255,0.02); }
+        #assets-panel .small { font-size: 0.85rem; color: var(--accent-grey); margin-bottom: 8px; }
+    </style>
+    <style>
+        #live-tv-button {
+            font-family: 'Press Start 2P', monospace;
+            color: var(--primary-color);
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 8px;
+            gap: 6px;
+            box-sizing: border-box;
+        }
+        #live-tv-button .btn-label {
+            font-size: 9px; /* small but legible */
+            line-height: 1;
+            text-transform: none;
+            color: var(--primary-color);
+            -webkit-font-smoothing: antialiased;
+            white-space: normal;       /* allow wrapping */
+            text-align: center;       /* center two lines */
+            display: inline-block;
+            padding: 0;
+            margin: 0;
+            max-width: 100%;
+        }
+    </style>
+    <style>
+        /* Header logo to replace title + home button */
+        #header-logo {
+            height: 64px;
+            display: block;
+            margin: 0;
+            filter: none;
+            cursor: default;
+        }
+    </style>
 </head>
 <body>
+    <div id="popup-banner" role="status" aria-live="polite">
+        IMPORTANT — ENABLE POPUPS TO USE THE FULL WEBSITE
+        <button id="popup-banner-close" aria-label="Dismiss banner">Dismiss</button>
+    </div>
+
     <!-- Password gate (blocks everything until correct PIN) -->
     <div id="pw-gate" aria-modal="true" role="dialog" aria-label="Site password gate">
         <div class="card" role="document">
@@ -1305,10 +1386,7 @@
     </video>
     <div id="dark-mode-overlay"></div>
     <div class="top-bar">
-        <button id="character" title="Home" aria-label="Home" style="width:64px;height:64px;border:none;background:none;">
-            ⌂ Home
-        </button>
-        <h1 id="title">QNB</h1>
+        <img id="header-logo" src="/qnblogo.png.png" alt="QNB" style="height:64px;object-fit:contain;">
     </div>
 
     <div id="client-visitor-counter">
@@ -1331,7 +1409,11 @@
         
         <div style="display: flex; gap: 15px; margin-top: 15px; justify-content: center;">
             <button id="live-tv-button" title="Live TV" style="background: none; border: 3px solid var(--primary-color); border-radius: 15px; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background-color: rgba(0, 0, 0, 0.6); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);">
-                <img src="/Live_TV.png" alt="Live TV" style="width: 24px; height: 24px; filter: brightness(0) invert(1); transition: transform 0.3s ease;">
+                <span class="btn-label">Live<br>tv</span>
+            </button>
+            
+            <button id="interstellar-button" title="Interstellar (proxy)" style="background: none; border: 3px solid var(--primary-color); border-radius: 15px; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s ease; background-color: rgba(0,0,0,0.6); box-shadow: 0 0 15px rgba(255,255,255,0.12);">
+                <img src="/INTERSTELLAR_Icon.png" alt="Interstellar" style="width: 24px; height: 24px; filter: brightness(0) invert(1);">
             </button>
             
             <!-- Oddish AI button removed -->
@@ -1343,10 +1425,6 @@
     <button id="dark-mode-toggle" title="Toggle Dark Mode">
         <img class="dark-icon" src="dark_mode_icon.png" alt="Toggle Dark Mode">
         <img class="light-icon" src="light_mode_icon.png" alt="Toggle Light Mode">
-    </button>
-
-    <button id="news-button" title="News">
-        <img src="/News.png" alt="News">
     </button>
 
     <!-- Credits button removed -->
@@ -1366,6 +1444,25 @@
             <div id="news-content">
                 <!-- Start the news iframe paused; we will set real src only when opened -->
                 <iframe src="about:blank" style="width: 100%; height: 100%; border: none; border-radius: 4px;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credits sidebar (new) -->
+    <div id="credits-sidebar">
+        <div id="credits-resize-handle"></div>
+        <div id="credits-sidebar-content">
+            <div id="credits-sidebar-header">
+                <h2>Credits</h2>
+                <button id="close-credits-btn">×</button>
+            </div>
+            <div id="credits-content" style="padding:12px; color:var(--primary-color); font-family:'PixelOperator-Bold', sans-serif; overflow-y:auto;">
+                <!-- Filled dynamically when opened; fallback content below -->
+                <div id="credits-default">
+                    <h3 style="margin-top:0;">Made by QNB</h3>
+                    <p>Logo designed by QNB</p>
+                    <p>All the rest of that — thanks to everyone involved.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1391,18 +1488,21 @@
                 </div>
                 <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                     <div class="wallpaper-strip" tabindex="0" aria-label="Wallpaper gallery">
-                        <button id="wallpaper-bg1-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (1) video"></button>
-                        <button id="wallpaper-bg2-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (2) video"></button>
-                        <button id="wallpaper-bg3-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (3) video"></button>
-                        <button id="wallpaper-bg5-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (5) video"></button>
-                        <button id="wallpaper-bg6-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (6) video"></button>
-                        <button id="wallpaper-bg7-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (7) video"></button>
-                        <button id="wallpaper-bg8-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (8) video"></button>
-                        <button id="wallpaper-bg9-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (9) video"></button>
-                        <button id="wallpaper-bg10-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (10) video"></button>
-                        <button id="wallpaper-bg11-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (11) video"></button>
-                        <button id="wallpaper-bg13-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (13) video"></button>
+                        <!-- Replaced photo thumbnails with upload flow -->
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input id="wallpaper-upload-input" type="file" accept="image/*" style="display:none;">
+                            <button id="wallpaper-upload-btn" class="wallpaper-thumb neutral-thumb" title="Upload background image" style="display:flex;align-items:center;justify-content:center;font-size:12px;">Upload</button>
+                            <button id="wallpaper-clear-btn" class="wallpaper-thumb neutral-thumb" title="Clear custom background" style="display:flex;align-items:center;justify-content:center;font-size:12px;">Clear</button>
+                        </div>
                     </div>
+                </div>
+                <div style="margin-top:16px; padding-top:12px; border-top:1px dashed rgba(255,255,255,0.08);">
+                    <label for="admin-pin-input" style="font-size:14px; display:block; margin-bottom:6px;">Admin PIN</label>
+                    <div style="display:flex; gap:8px;">
+                        <input id="admin-pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.4); color:var(--primary-color);">
+                        <button id="admin-pin-submit" style="padding:8px 12px; border-radius:8px; border:2px solid var(--primary-color); background:transparent; color:var(--primary-color); cursor:pointer;">Unlock</button>
+                    </div>
+                    <div id="admin-pin-msg" style="font-size:12px; margin-top:6px; color:var(--accent-grey);"></div>
                 </div>
             </div>
         </div>
@@ -1420,9 +1520,9 @@
     <div id="game-overlay">
         <div id="game-container">
             <div id="game-controls">
-                <button id="close-game-btn"><img src="/close_button.png" alt="Close" style="width: 24px; height: 24px; filter: brightness(0);"></button>
-                <button id="refresh-game-btn"><img src="/refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png" alt="Refresh" style="width: 24px; height: 24px; filter: brightness(0);"></button>
-                <button id="open-new-tab-btn"><img src="/pop-up_button.png" alt="Open in new tab" style="width: 24px; height: 24px; filter: brightness(0);"></button>
+                <button id="close-game-btn" aria-label="Close" title="Close"><span class="ctrl-dot" aria-hidden="true"></span></button>
+                <button id="refresh-game-btn" aria-label="Reload" title="Reload"><span class="ctrl-dot" aria-hidden="true" style="background:transparent"></span></button>
+                <button id="open-new-tab-btn" title="Credits" aria-label="Fullscreen / Credits"><span class="ctrl-dot" aria-hidden="true"></span></button>
             </div>
             <iframe id="game-iframe" allowfullscreen></iframe>
         </div>
@@ -1431,6 +1531,20 @@
     <script type="module" src="/index.js"></script>
 
     <script>
+        // Banner dismiss handling (non-persistent: dismiss for this session only)
+        (function(){
+            const banner = document.getElementById('popup-banner');
+            const btn = document.getElementById('popup-banner-close');
+            if(!banner || !btn) return;
+            btn.addEventListener('click', ()=>{
+                banner.classList.add('hidden');
+                // keep hidden for session only
+                sessionStorage.setItem('qnb_popup_banner_dismissed','1');
+            });
+            // Respect session dismiss state
+            if(sessionStorage.getItem('qnb_popup_banner_dismissed') === '1') banner.classList.add('hidden');
+        })();
+
         // Password gate script (PIN = 8956)
         (function(){
             const GATE_KEY = 'qnb_unlocked_v1'; // persisted in localStorage so gate shows only once
@@ -1602,20 +1716,21 @@
         // Update proxy/unblock button visibility based on access level (callable globally)
         window.updateProxyVisibility = function() {
             try {
-                const access = localStorage.getItem('qnb_unlocked_v1'); // 'limited' | 'full' | null
                 const interstellarBtn = document.getElementById('interstellar-button');
                 if (!interstellarBtn) return;
-                // Do not force visibility here; keep hidden by default unless revealed by keypress.
-                interstellarBtn.dataset.isProxy = (access === 'full') ? '1' : '0';
+                const adminUnlocked = sessionStorage.getItem('qnb_admin_unlocked') === '1';
+                interstellarBtn.style.display = adminUnlocked ? 'flex' : 'none';
+                interstellarBtn.dataset.isProxy = adminUnlocked ? '1' : '0';
             } catch (e) { console.warn('updateProxyVisibility failed', e); }
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Ensure any previous admin unlock does not survive a reload:
+            try { sessionStorage.removeItem('qnb_admin_unlocked'); } catch(e) { /* noop */ }
+            // Refresh proxy visibility immediately after clearing admin flag
+            if (window.updateProxyVisibility) window.updateProxyVisibility();
+             
             const loadingOverlay = document.getElementById('loading-overlay');
-            
-            // Ensure Interstellar button is hidden on every page load (requires pressing "8" to reveal)
-            const _interstellarBtnOnLoad = document.getElementById('interstellar-button');
-            if (_interstellarBtnOnLoad) _interstellarBtnOnLoad.style.display = 'none';
             
             // Hide loading overlay after a minimum time and when page is fully loaded
             const hideLoading = () => {
@@ -1684,6 +1799,56 @@
                 setTheme('light');
             }
 
+            // Verify toolbar icons load and provide a visible fallback if any fail.
+            function verifyIcons() {
+                const fallbacks = {
+                    'news': '/News.png',
+                    'settings': '/settings.png',
+                    'live-tv': '/Live_TV.png',
+                    'dark-mode': 'dark_mode_icon.png',
+                    'light-mode': 'light_mode_icon.png'
+                };
+
+                const map = [
+                    { sel: '#news-button img', key: 'news' },
+                    { sel: '#settings-button img', key: 'settings' },
+                    { sel: '#live-tv-button img', key: 'live-tv' },
+                    { sel: '#dark-mode-toggle .dark-icon', key: 'dark-mode' },
+                    { sel: '#dark-mode-toggle .light-icon', key: 'light-mode' }
+                ];
+
+                map.forEach(item => {
+                    const img = document.querySelector(item.sel);
+                    if (!img) return;
+                    // If the img already failed once, skip reassigning repeatedly
+                    if (img.dataset.fallbackTried === '1') return;
+                    img.addEventListener('error', () => {
+                        console.warn('Icon failed to load:', img.src, ' — applying fallback:', fallbacks[item.key]);
+                        img.dataset.fallbackTried = '1';
+                        img.src = fallbacks[item.key];
+                        // If fallback is still missing, show a very small visible placeholder
+                        img.addEventListener('error', () => {
+                            img.dataset.fallbackTried = '2';
+                            img.style.background = 'linear-gradient(90deg, rgba(255,255,255,0.06), rgba(0,0,0,0.06))';
+                            img.style.width = img.style.width || '24px';
+                            img.style.height = img.style.height || '24px';
+                            img.style.display = 'block';
+                            img.alt = 'icon';
+                        }, { once: true });
+                    }, { once: true });
+
+                    // Force a minimal load attempt (use naturalWidth to trigger onerror in some browsers)
+                    if (img.complete && img.naturalWidth === 0) {
+                        // Already failed — trigger error handler manually
+                        const ev = new Event('error');
+                        img.dispatchEvent(ev);
+                    }
+                });
+            }
+
+            // Run verification after a small delay to allow resources to start loading.
+            setTimeout(verifyIcons, 250);
+
             // Snow toggle wiring
             const snowSwitch = document.getElementById('settings-snow-switch');
             const savedSnow = localStorage.getItem('kermit_snow') === 'on';
@@ -1698,6 +1863,19 @@
 
             const bgVideoEl = document.getElementById('bg-video');
             function applyWallpaper(choice) {
+                // Support custom uploaded background kept in sessionStorage
+                if (choice === 'custom-upload') {
+                    const customUrl = sessionStorage.getItem('kermit_custom_bg');
+                    if (customUrl) {
+                        if (bgVideoEl) bgVideoEl.style.display = 'none';
+                        document.body.style.background = `center / cover no-repeat url('${customUrl}')`;
+                        document.body.style.backgroundAttachment = 'fixed';
+                        return;
+                    } else {
+                        // Fallback to previous saved wallpaper if custom is missing
+                        choice = localStorage.getItem('kermit_wallpaper') || 'video-default';
+                    }
+                }
                 if (choice === 'video-default') {
                     if (bgVideoEl) {
                         if (bgVideoEl.src.endsWith('/mp4-1280 (1).mp4') === false) {
@@ -1706,6 +1884,21 @@
                         bgVideoEl.style.display = '';
                     }
                     document.body.style.background = '';
+                } else if (choice === 'color-black') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = '#000000';
+                } else if (choice === 'color-white') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = '#ffffff';
+                } else if (choice === 'color-blue') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = '#0b3bd6';
+                } else if (choice === 'color-teal') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = '#0fa3a3';
+                } else if (choice === 'color-gray') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = '#111217';
                 } else if (choice === 'image-bg1') {
                     if (bgVideoEl) bgVideoEl.style.display = 'none';
                     document.body.style.background = "center / cover no-repeat url('/bg_1.png')";
@@ -1821,7 +2014,48 @@
                 }
             }
             const savedWallpaper = localStorage.getItem('kermit_wallpaper') || 'video-default';
-            applyWallpaper(savedWallpaper);
+            // If a custom uploaded image exists for this session, prefer it
+            const sessionCustom = sessionStorage.getItem('kermit_custom_bg');
+            if (sessionCustom) {
+                applyWallpaper('custom-upload');
+            } else {
+                applyWallpaper(savedWallpaper);
+            }
+
+            // Wiring for upload controls: allow user to upload a photo and use it as background for the session
+            const uploadInput = document.getElementById('wallpaper-upload-input');
+            const uploadBtn = document.getElementById('wallpaper-upload-btn');
+            const clearBtn = document.getElementById('wallpaper-clear-btn');
+
+            if (uploadBtn && uploadInput) {
+                uploadBtn.addEventListener('click', () => uploadInput.click());
+                uploadInput.addEventListener('change', (ev) => {
+                    const f = ev.target.files && ev.target.files[0];
+                    if (!f) return;
+                    // Use an object URL stored in sessionStorage so it does not persist across reloads.
+                    // This avoids embedding base64 data in localStorage.
+                    try {
+                        const url = URL.createObjectURL(f);
+                        sessionStorage.setItem('kermit_custom_bg', url);
+                        applyWallpaper('custom-upload');
+                        // Provide a small hint in settings panel
+                        const adminMsg = document.getElementById('admin-pin-msg');
+                        if (adminMsg) adminMsg.textContent = 'Custom background applied for this session.';
+                    } catch (err) {
+                        console.warn('Failed to set custom background', err);
+                    }
+                });
+            }
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    const prev = sessionStorage.getItem('kermit_custom_bg');
+                    if (prev) {
+                        try { URL.revokeObjectURL(prev); } catch(e){}
+                    }
+                    sessionStorage.removeItem('kermit_custom_bg');
+                    applyWallpaper(localStorage.getItem('kermit_wallpaper') || 'video-default');
+                });
+            }
 
             const wallpaperBtn = document.getElementById('wallpaper-bg1-button');
             if (wallpaperBtn) {
@@ -1992,6 +2226,17 @@
                     applyWallpaper('video-13');
                 });
             }
+            // Color button wiring
+            const colorBlack = document.getElementById('color-bg-black');
+            if (colorBlack) colorBlack.addEventListener('click', () => { localStorage.setItem('kermit_wallpaper','color-black'); applyWallpaper('color-black'); });
+            const colorWhite = document.getElementById('color-bg-white');
+            if (colorWhite) colorWhite.addEventListener('click', () => { localStorage.setItem('kermit_wallpaper','color-white'); applyWallpaper('color-white'); });
+            const colorBlue = document.getElementById('color-bg-blue');
+            if (colorBlue) colorBlue.addEventListener('click', () => { localStorage.setItem('kermit_wallpaper','color-blue'); applyWallpaper('color-blue'); });
+            const colorTeal = document.getElementById('color-bg-teal');
+            if (colorTeal) colorTeal.addEventListener('click', () => { localStorage.setItem('kermit_wallpaper','color-teal'); applyWallpaper('color-teal'); });
+            const colorGray = document.getElementById('color-bg-gray');
+            if (colorGray) colorGray.addEventListener('click', () => { localStorage.setItem('kermit_wallpaper','color-gray'); applyWallpaper('color-gray'); });
             // Client-side Visitor Counter Logic
             const clientVisitCountElement = document.getElementById('client-visit-count');
             const VISIT_COUNT_KEY = 'kermit_local_visit_count';
@@ -2007,20 +2252,70 @@
             incrementClientVisitCount(); // Call on page load
 
             // Reveal Interstellar button when pressing the "8" key
-            document.addEventListener('keydown', (e) => {
-                // check for '8' on main keyboard or Numpad8
-                if (e.key === '8' || e.code === 'Numpad8') {
-                    const btn = document.getElementById('interstellar-button');
-                    if (!btn) return;
-                    if (btn.style.display === 'none' || getComputedStyle(btn).display === 'none') {
-                        btn.style.display = 'flex'; // show explicitly (matches button layout)
-                        // ensure proxy dataset matches current access
-                        btn.dataset.isProxy = (localStorage.getItem('qnb_unlocked_v1') === 'full') ? '1' : '0';
-                    } else {
-                        btn.style.display = 'none'; // toggle off if already visible
+            // document.addEventListener('keydown', (e) => {
+            //     if (e.key === '8' || e.code === 'Numpad8') {
+            //         /* removed: proxy reveal is now admin-only via Settings */
+            //     }
+            // });
+
+            // Populate assets panel with known files (so you can download them)
+            (function populateAssetsPanel(){
+                const assets = [
+                    '/bg_1.png','/bg_2.png','/bg_3.png','/bg_4.png','/bg_5.png','/bg_6.png','/bg_7.png','/bg_8.png','/bg_9.png','/bg_10.png','/bg_11.png','/bg_12.png','/bg_13.png',
+                    '/dark_mode_icon.png','/light_mode_icon.png','/refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png','/pop-up_button.png','/pop-up_button_2.png',
+                    '/settings.png','/News.png','/Live_TV.png','/close_button.png','/favicon.ico',
+                    '/Oddish.png','/Oddish_AI.png','/Oddish_profile','/Oddish_AI.png','/Oddish_AI.png',
+                    '/mp4-1280 (39).mp4','/mp4-1280 (40).mp4','/mp4-1280 (41).mp4','/mp4-1280 (42).mp4','/mp4-1280 (43).mp4','/mp4-1280 (44).mp4','/mp4-1280 (45).mp4','/mp4-1280 (46).mp4','/mp4-1280 (47).mp4','/mp4-1280 (48).mp4','/mp4-1280 (49).mp4','/mp4-1280 (50).mp4',
+                    '/SpotiDownloader.com - Beach Buds (Short Hike) - Mark Sparling.mp3','/SpotiDownloader.com - Ember Valley (Relaxed) - Harry Mack.mp3','/New_Age_Whale__Chill__Jul_4_2025_806_AM (1).mp3','/Chill_Rabbit__Chill__Jul_7_2025_1108_AM.mp3','/LoFi_Hippo__Moody__Jul_7_2025_1000_AM.mp3','/New_Age_Whale__Bright__Jul_7_2025_1201_PM.mp3','/New_Age_Whale__Chill__Jul_6_2025_945_AM.mp3',
+                    '/Cover of Ember Valley (Relaxed) by Harry Mack.mp3','/Cover of Beach Buds (Short Hike) by Mark Sparling.jpg','/Cover of Everything\'s Gonna Be Okay - Calum Bowen.jpg',
+                    '/INTERSTELLAR_Icon.png','/Kermit.png','/Oddish_AI.png','/Oddish.png','/cat_stardew_valley.jpg',
+                    '/loop_button.png','/loop_button_active.png','/previous_skip.png','/skip_next.png','/refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png'
+                ];
+                const list = document.getElementById('assets-list');
+                list.innerHTML = '';
+                assets.forEach(path => {
+                    const a = document.createElement('a');
+                    a.href = path;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.textContent = path.replace(/^\//,'');
+                    a.title = 'Open ' + a.textContent + ' in a new tab';
+                    list.appendChild(a);
+                });
+                // Save All button handler: fetch each asset and trigger a download sequentially
+                const saveAllBtn = document.getElementById('save-all-assets');
+                saveAllBtn.addEventListener('click', async () => {
+                    saveAllBtn.disabled = true;
+                    const originalText = saveAllBtn.textContent;
+                    saveAllBtn.textContent = 'Downloading...';
+                    for (const p of assets) {
+                        try {
+                            const resp = await fetch(p);
+                            if (!resp.ok) throw new Error('not ok');
+                            const blob = await resp.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = p.split('/').pop();
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                            // small pause so browser can register sequential downloads
+                            await new Promise(r => setTimeout(r, 450));
+                        } catch (err) {
+                            console.warn('Failed to download', p, err);
+                        }
                     }
-                }
-            });
+                    saveAllBtn.textContent = 'Done';
+                    setTimeout(() => { saveAllBtn.disabled = false; saveAllBtn.textContent = originalText; }, 1500);
+                });
+                // If user environment doesn't host a few, let them know quickly
+                const note = document.createElement('div');
+                note.className = 'small';
+                note.textContent = 'If a link 404s, that file may not be present on this host.';
+                list.appendChild(note);
+            })();
         });
 
         const gameData = {
@@ -2473,8 +2768,10 @@
 
         const character = document.getElementById('character');
 
-        // simple home button behavior: go to root when clicked
-        character.addEventListener('click', () => { window.location.href = '/'; });
+        // simple home button behavior: go to root when clicked (guarded in case element was removed)
+        if (character) {
+            character.addEventListener('click', () => { window.location.href = '/'; });
+        }
 
         let isDragging = false;
         let offset = { x: 0, y: 0 };
@@ -2486,41 +2783,43 @@
         let lastTime = 0;
         let velocity = { x: 0, y: 0 };
 
-        character.addEventListener('mousedown', (e) => {
-            if (character.classList.contains('returning')) return;
-            
-            e.preventDefault();
-            
-            isDragging = true;
-            
-            homeRect = character.getBoundingClientRect();
+        if (character) {
+            character.addEventListener('mousedown', (e) => {
+                if (character.classList.contains('returning')) return;
+                
+                e.preventDefault();
+                
+                isDragging = true;
+                
+                homeRect = character.getBoundingClientRect();
 
-            // Create and insert a placeholder to maintain layout
-            placeholder = document.createElement('div');
-            placeholder.style.width = `${homeRect.width}px`;
-            placeholder.style.height = `${homeRect.height}px`;
-            placeholder.style.flexShrink = '0'; // Prevent placeholder from shrinking
-            character.parentElement.insertBefore(placeholder, character);
+                // Create and insert a placeholder to maintain layout
+                placeholder = document.createElement('div');
+                placeholder.style.width = `${homeRect.width}px`;
+                placeholder.style.height = `${homeRect.height}px`;
+                placeholder.style.flexShrink = '0'; // Prevent placeholder from shrinking
+                character.parentElement.insertBefore(placeholder, character);
 
-            offset.x = e.clientX - homeRect.left;
-            offset.y = e.clientY - homeRect.top;
-            
-            character.style.position = 'fixed';
-            character.style.left = `${homeRect.left}px`;
-            character.style.top = `${homeRect.top}px`;
-            
-            lastPos = { x: e.clientX, y: e.clientY };
-            lastTime = performance.now();
+                offset.x = e.clientX - homeRect.left;
+                offset.y = e.clientY - homeRect.top;
+                
+                character.style.position = 'fixed';
+                character.style.left = `${homeRect.left}px`;
+                character.style.top = `${homeRect.top}px`;
+                
+                lastPos = { x: e.clientX, y: e.clientY };
+                lastTime = performance.now();
 
-            // Allow a moment for the position change to apply before adding the class
-            requestAnimationFrame(() => {
-                character.style.setProperty('--character-scale', '1.1');
-                character.classList.add('dragging');
+                // Allow a moment for the position change to apply before adding the class
+                requestAnimationFrame(() => {
+                    character.style.setProperty('--character-scale', '1.1');
+                    character.classList.add('dragging');
+                });
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
             });
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
+        }
 
         function onMouseMove(e) {
             if (!isDragging) return;
@@ -2706,6 +3005,23 @@
                 const stopDrag = () => { document.removeEventListener('mousemove', doDrag); document.removeEventListener('mouseup', stopDrag); if (!settingsSidebar.classList.contains('open')) settingsSidebar.style.right = `-${settingsSidebar.offsetWidth}px`; };
                 document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', stopDrag);
             });
+            // Admin PIN unlock wiring
+            const adminInput = document.getElementById('admin-pin-input');
+            const adminBtn = document.getElementById('admin-pin-submit');
+            const adminMsg = document.getElementById('admin-pin-msg');
+            if (adminBtn && adminInput) {
+                adminBtn.addEventListener('click', () => {
+                    const val = (adminInput.value || '').trim();
+                    if (val === '8211') {
+                        sessionStorage.setItem('qnb_admin_unlocked', '1');
+                        adminMsg.textContent = 'Admin unlocked. Proxy enabled.';
+                        window.updateProxyVisibility();
+                        // Do not persist beyond this page session; already using sessionStorage.
+                    } else {
+                        adminMsg.textContent = 'Incorrect PIN';
+                    }
+                });
+            }
         }
 
         const newsButton = document.getElementById('news-button');
@@ -2713,16 +3029,51 @@
         const closeNewsBtn = document.getElementById('close-news-btn');
         const resizeHandle = document.getElementById('news-resize-handle');
 
-        newsButton.addEventListener('click', () => {
-            newsSidebar.style.right = '';
-            newsSidebar.classList.add('open');
-            
-            // Lazy-load the news iframe only when opened
-            const newsIframe = newsSidebar.querySelector('iframe');
-            if (newsIframe && newsIframe.src === 'about:blank') {
-                newsIframe.src = 'https://rss.app/embed/v1/list/tpkxDflrmDsdb3PO';
+        // Credits sidebar close wiring
+        const creditsSidebar = document.getElementById('credits-sidebar');
+        const closeCreditsBtn = document.getElementById('close-credits-btn');
+        if (closeCreditsBtn && creditsSidebar) {
+            closeCreditsBtn.addEventListener('click', () => {
+                const w = creditsSidebar.offsetWidth;
+                creditsSidebar.style.right = `-${w}px`;
+                creditsSidebar.classList.remove('open');
+                document.body.style.overflow = '';
+            });
+            document.addEventListener('click', (e) => {
+                if (creditsSidebar.classList.contains('open') && !creditsSidebar.contains(e.target) && !(typeof openNewTabBtn !== 'undefined' && openNewTabBtn && openNewTabBtn.contains(e.target))) {
+                    const w = creditsSidebar.offsetWidth;
+                    creditsSidebar.style.right = `-${w}px`;
+                    creditsSidebar.classList.remove('open');
+                    document.body.style.overflow = '';
+                }
+            });
+            // Resize handle for credits (reuse the same logic pattern)
+            const creditsResize = document.getElementById('credits-resize-handle');
+            if (creditsResize) {
+                creditsResize.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    const startX = e.clientX, startW = creditsSidebar.offsetWidth;
+                    const doDrag = (ev) => { creditsSidebar.style.width = `${startW - (ev.clientX - startX)}px`; };
+                    const stopDrag = () => { document.removeEventListener('mousemove', doDrag); document.removeEventListener('mouseup', stopDrag); if (!creditsSidebar.classList.contains('open')) creditsSidebar.style.right = `-${creditsSidebar.offsetWidth}px`; };
+                    document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', stopDrag);
+                });
             }
-        });
+        }
+
+        if (newsButton) {
+            newsButton.addEventListener('click', () => {
+                // Open Credits sidebar (legacy behaviour) if the button exists
+                const creditsSidebar = document.getElementById('credits-sidebar');
+                if (!creditsSidebar) return;
+                creditsSidebar.style.right = '';
+                creditsSidebar.classList.add('open');
+                // Lazy-load the news iframe only when opened
+                const newsIframe = newsSidebar?.querySelector('iframe');
+                if (newsIframe && newsIframe.src === 'about:blank') {
+                    newsIframe.src = 'https://rss.app/embed/v1/list/tpkxDflrmDsdb3PO';
+                }
+            });
+        }
 
         const closeSidebar = () => {
             const sidebarWidth = newsSidebar.offsetWidth;
@@ -2828,12 +3179,18 @@
         
         const openNewTabBtn = document.getElementById('open-new-tab-btn');
 
-        // Make the in-overlay "Open in new tab" do the exact same stealth popup flow
+        // Replace "open new tab" behavior with opening the Credits sidebar
         openNewTabBtn.addEventListener('click', () => {
-            const gameSrc = gameIframe.src;
-            if (gameSrc && gameSrc !== 'about:blank') {
-                openInAboutBlankStealth(gameSrc);
+            const creditsSidebar = document.getElementById('credits-sidebar');
+            if (!creditsSidebar) return;
+            creditsSidebar.style.right = '';
+            creditsSidebar.classList.add('open');
+            // Populate credits content (non-persistent)
+            const creditsContent = document.getElementById('credits-content');
+            if (creditsContent) {
+                creditsContent.innerHTML = '<h3 style="margin-top:0;">Made by QNB</h3><p>Logo designed by QNB</p><p>All the rest of that — thanks to everyone involved.</p>';
             }
+            document.body.style.overflow = 'hidden';
         });
 
         gameOverlay.addEventListener('click', (e) => {
