@@ -1,0 +1,2910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QNB</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <script>
+        // HARD POPUP GUARD. This MUST run before anything else.
+        // It detects if we are in an about:blank context and aggressively disables popups.
+        (function() {
+            try {
+                // This check must be robust. A new window's location can be 'about:blank' initially.
+                // Using sessionStorage is a reliable way to carry the state into the new window.
+                const isInAboutBlank = window.location.protocol === 'about:' ||
+                                      window.location.href === 'about:blank' ||
+                                      (window.location.protocol === 'blob:' && sessionStorage.getItem('kermit_in_about_blank') === 'true') ||
+                                      sessionStorage.getItem('kermit_in_about_blank') === 'true';
+
+                if (isInAboutBlank) {
+                    // Set the flag again to be certain.
+                    sessionStorage.setItem('kermit_in_about_blank', 'true');
+                    
+                    // The original window.open
+                    const originalOpen = window.open;
+
+                    // A flag to grant one-time permission for a popup
+                    window.kermit_popup_permission = false;
+                    
+                    // Override window.open to be permission-based
+                    Object.defineProperty(window, 'open', {
+                        value: function(...args) {
+                            if (window.kermit_popup_permission) {
+                                // Permission granted, use it once and reset *before* the call.
+                                window.kermit_popup_permission = false; 
+                                return originalOpen.apply(window, args);
+                            }
+                            console.log('Popup blocked by Kermit Web shield. Use a designated button to open content.');
+                            return null; // Block by default
+                        },
+                        writable: false,
+                        configurable: false
+                    });
+
+                    // Still block alerts and confirms as they can be disruptive
+                    window.alert = function() {
+                        console.log('Alert blocked by Kermit Web shield.');
+                    };
+                    window.confirm = function() {
+                        console.log('Confirm blocked by Kermit Web shield.');
+                        return false;
+                    };
+                }
+            } catch(e) {
+                // In case of security errors (e.g., in some sandboxed environments),
+                // we still try to set the session flag. The main script will use this.
+                sessionStorage.setItem('kermit_in_about_blank', 'true');
+            }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4b3bd6; /* darker purple */
+            --accent-grey: #7f868d;
+            --bg-grey: #0f1113;
+            --text-grey: #ddd;
+            --purple-color: #4b3bd6;
+        }
+
+        body {
+            margin: 0;
+            /* darker cool grey / near-black gradient background */
+            background: linear-gradient(180deg, #0c0c0d 0%, #0f1113 40%, #121417 100%);
+            color: var(--text-grey);
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #000000, #1a1a1a, #000000);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #loading-content {
+            text-align: center;
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+        }
+
+        #loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+
+        #loading-title {
+            font-size: 2.5em;
+            margin: 0 0 10px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        #loading-subtitle {
+            font-size: 1.2em;
+            margin: 0;
+            opacity: 0.8;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #dark-mode-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: -1; 
+            pointer-events: none;
+        }
+
+        body.dark-mode #dark-mode-overlay {
+            opacity: 0.5;
+        }
+
+        #bg-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -2;
+        }
+
+        @keyframes move-lines {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 31.11px 0;
+            }
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(107,91,255,0.08);
+            border-bottom: 2px solid rgba(107,91,255,0.12);
+        }
+
+        #title {
+            color: var(--purple-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            margin-left: 12px;
+            font-size: 1.8em;
+        }
+
+        #character {
+            width: 64px;
+            height: 64px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,0.04);
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 0.95em;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+        }
+
+        #character:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
+
+        #game-counter {
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 15px;
+            border: 3px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .counter-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        #client-visitor-counter {
+            position: fixed;
+            bottom: 20px; /* Changed from top to bottom */
+            right: 20px; /* Changed from left to right */
+            left: unset; /* Ensure left is unset */
+            top: unset; /* Ensure top is unset */
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.2em; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 15px; 
+            border: 3px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            width: 180px; 
+            height: 180px; 
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; 
+            align-items: flex-start; 
+            text-align: left; 
+            line-height: 1.2;
+            padding: 20px; 
+            box-sizing: border-box; 
+            z-index: 1001; 
+            /* removed decorative image - neutral surface */
+            background-image: none;
+        }
+        #client-visitor-counter #total-visits-label {
+            font-size: 1em; 
+            margin-bottom: 5px; 
+            font-weight: bold;
+        }
+        #client-visitor-counter #client-visit-count {
+            font-size: 1em; 
+            margin-bottom: 0; 
+            font-weight: bold;
+        }
+
+        #unblock-button {
+            background: none;
+            border: 3px solid var(--primary-color);
+            border-radius: 15px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        #unblock-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        #unblock-button img {
+            transition: filter 0.3s ease;
+        }
+
+        body.dark-mode #unblock-button img {
+            /* This complex filter attempts to turn white into purple. */
+            /* Removed purple filter */
+        }
+
+        .search-container {
+            margin-top: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        #search-bar-results-wrapper { 
+            position: relative;
+            width: 50%; 
+            max-width: 600px; 
+            transition: width 0.3s ease, max-width 0.3s ease; 
+            margin-top: 0; 
+        }
+
+        .search-container:focus-within #search-bar-results-wrapper { 
+            width: 60%;
+            max-width: 700px;
+        }
+
+        #search-bar {
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.5em;
+            padding: 15px;
+            width: 100%; 
+            border: 4px solid var(--primary-color);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: var(--primary-color);
+            outline: none;
+            text-align: center;
+            box-sizing: border-box;
+            border-radius: 50px;
+        }
+
+        #search-bar:focus {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+        }
+
+        body.dark-mode #search-bar:focus {
+            box-shadow: 0 0 15px var(--purple-color);
+        }
+
+        #search-results {
+            position: absolute; 
+            top: calc(100% + 15px); 
+            left: 0; 
+            width: 100%; 
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 4px solid var(--primary-color);
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            border-radius: 25px;
+            z-index: 20; 
+        }
+
+        #search-results a {
+            display: block;
+            padding: 12px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.2em;
+            text-align: center;
+            text-transform: capitalize;
+        }
+
+        #search-results a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Custom scrollbar for search results */
+        #search-results::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        #search-results::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        #search-results::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 6px;
+            border: 3px solid #222;
+        }
+
+        #dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1001;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+        }
+
+        #dark-mode-toggle img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            transition: transform 0.3s cubic-bezier(0.45, 0, 0.55, 1), opacity 0.3s ease;
+        }
+
+        #dark-mode-toggle:hover img {
+            transform: scale(1.1) rotate(var(--icon-rotation, 0deg));
+        }
+
+        /* Initial state (light mode) - moon is visible */
+        #dark-mode-toggle .light-icon {
+            opacity: 0;
+            transform: scale(0.5) rotate(-90deg);
+            --icon-rotation: -90deg;
+        }
+        #dark-mode-toggle .dark-icon {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+            --icon-rotation: 0deg;
+        }
+
+        /* Dark mode state - sun is visible */
+        body.dark-mode #dark-mode-toggle .light-icon {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+            --icon-rotation: 0deg;
+        }
+        body.dark-mode #dark-mode-toggle .dark-icon {
+            opacity: 0;
+            transform: scale(0.5) rotate(90deg);
+            --icon-rotation: 90deg;
+        }
+
+        #news-button {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1001;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            transition: transform 0.3s ease;
+        }
+
+        /* Hide explicit popup-opening controls when inside about:blank */
+        .in-aboutblank #unblock-button {
+            display: none !important;
+        }
+
+        #news-button:hover {
+            transform: scale(1.1);
+        }
+
+        #news-button img {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)) brightness(0) invert(1);
+            transition: transform 0.3s ease;
+        }
+
+        #news-button:hover img {
+            transform: scale(1.1);
+        }
+
+        #settings-button {
+            position: fixed;
+            top: 120px; /* moved up to occupy previous Credits position */
+            right: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1001;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            transition: transform 0.3s ease;
+        }
+
+        #settings-button:hover {
+            transform: scale(1.1);
+        }
+
+        #settings-button img {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)) brightness(0) invert(1);
+            transition: transform 0.3s ease;
+        }
+
+        #settings-button:hover img {
+            transform: scale(1.1);
+        }
+
+        #credits-button {
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1001;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            transition: transform 0.3s ease;
+        }
+
+        #credits-button:hover img {
+            transform: scale(1.1);
+        }
+
+        #credits-button:hover {
+            transform: scale(1.1);
+        }
+
+        #credits-button:hover img {
+            transform: scale(1.1);
+        }
+
+        #credits-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            min-width: 250px;
+            max-width: 80vw;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            border-left: 4px solid var(--primary-color);
+            z-index: 2500;
+            transition: right 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
+            display: flex; /* Use flexbox for layout */
+        }
+
+        #credits-resize-handle {
+            width: 8px;
+            cursor: col-resize;
+            flex-shrink: 0;
+            position: relative;
+            left: -4px; /* Center over border */
+        }
+
+        #credits-sidebar.open {
+            right: 0;
+        }
+
+        #credits-sidebar-content {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-width: 0; /* Prevents content from overflowing when sidebar is shrunk */
+        }
+
+        #credits-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        #credits-sidebar-header h2 {
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        #close-credits-btn {
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        #close-credits-btn:hover {
+            background-color: var(--primary-color);
+            color: black;
+            transform: rotate(90deg);
+        }
+
+        #credits-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: visible;
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+        }
+
+        #credits-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #credits-content::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        #credits-content::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 4px;
+        }
+
+        #news-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            min-width: 250px;
+            max-width: 80vw;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            border-left: 4px solid var(--primary-color);
+            z-index: 2500;
+            transition: right 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
+            display: flex; /* Use flexbox for layout */
+        }
+
+        #news-resize-handle {
+            width: 8px;
+            cursor: col-resize;
+            flex-shrink: 0;
+            position: relative;
+            left: -4px; /* Center over border */
+        }
+
+        #news-sidebar.open {
+            right: 0;
+        }
+
+        #news-sidebar-content {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-width: 0; /* Prevents content from overflowing when sidebar is shrunk */
+        }
+
+        #news-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        #news-sidebar-header h2 {
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        #close-news-btn {
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        #close-news-btn:hover {
+            background-color: var(--primary-color);
+            color: black;
+            transform: rotate(90deg);
+        }
+
+        #news-content {
+            flex: 1;
+            overflow-y: auto;
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+        }
+
+        #news-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #news-content::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        #news-content::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 4px;
+        }
+
+        #settings-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            min-width: 250px;
+            max-width: 80vw;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            border-left: 4px solid var(--primary-color);
+            z-index: 2500;
+            transition: right 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
+            display: flex; /* Use flexbox for layout */
+        }
+
+        #settings-resize-handle {
+            width: 8px;
+            cursor: col-resize;
+            flex-shrink: 0;
+            position: relative;
+            left: -4px; /* Center over border */
+        }
+
+        #settings-sidebar.open {
+            right: 0;
+        }
+
+        #settings-sidebar-content {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-width: 0; /* Prevents content from overflowing when sidebar is shrunk */
+        }
+
+        #settings-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        #settings-sidebar-header h2 {
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        #close-settings-btn {
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        #close-settings-btn:hover {
+            background-color: var(--primary-color);
+            color: black;
+            transform: rotate(90deg);
+        }
+
+        #settings-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: visible;
+            color: var(--primary-color);
+            font-family: 'PixelOperator-Bold', sans-serif;
+        }
+
+        #settings-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #settings-content::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        #settings-content::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 4px;
+        }
+
+        #game-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #game-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #game-container {
+            position: relative;
+            width: 90%;
+            height: 90%;
+            background: #000;
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.25);
+            display: flex;
+            flex-direction: column;
+            border: 4px solid var(--primary-color);
+        }
+
+        #game-controls {
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            z-index: 2001;
+            display: flex;
+            gap: 10px;
+            flex-direction: row-reverse;
+        }
+
+        #game-controls button {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            color: black;
+            border: 3px solid black;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        #close-game-btn {
+            font-size: 30px;
+            padding: 0; 
+        }
+
+        #close-game-btn:hover {
+            background-color: #ff5252;
+            color: var(--primary-color);
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        #close-game-btn img {
+            transition: filter 0.2s ease;
+        }
+
+        #close-game-btn:hover img {
+            filter: brightness(0) invert(1);
+        }
+
+        body.dark-mode #close-game-btn:hover img {
+            /* This filter makes the inverted color (white) become purple */
+            /* Removed purple filter. Now it will just be white on hover in both modes */
+        }
+
+        #refresh-game-btn {
+            font-size: 22px;
+        }
+
+        #refresh-game-btn:hover {
+            background-color: #2196F3;
+            color: var(--primary-color);
+            transform: scale(1.1) rotate(-180deg);
+        }
+
+        #refresh-game-btn img {
+            transition: filter 0.2s ease;
+        }
+
+        #refresh-game-btn:hover img {
+            filter: brightness(0) invert(1);
+        }
+
+        body.dark-mode #refresh-game-btn:hover img {
+             /* Removed purple filter. Now it will just be white on hover in both modes */
+        }
+
+        #open-new-tab-btn {
+            font-size: 22px;
+        }
+
+        #open-new-tab-btn:hover {
+            background-color: #4CAF50;
+            color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        #game-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 12px;
+            z-index: 5;
+        }
+
+        #music-player-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 5;
+            background-color: rgba(30, 30, 30, 0.75);
+            padding: 10px;
+            border-radius: 20px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
+            transition: border-color 0.3s ease;
+        }
+
+        #music-control {
+            position: relative;
+            width: 80px;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            cursor: pointer;
+            border: 2px solid var(--primary-color);
+        }
+
+        #music-control.loading {
+            border-color: orange;
+            animation: loading-pulse 1.2s infinite;
+        }
+
+        #music-control:hover {
+            transform: scale(1.05);
+        }
+
+        #prev-button, #next-button {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        #prev-button:hover, #next-button:hover {
+            transform: scale(1.1);
+        }
+
+        #prev-button:active {
+            transform: scale(0.95);
+        }
+
+        #prev-button.disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        #prev-button.disabled:hover, #prev-button.disabled:active {
+            transform: none;
+        }
+
+        #repeat-button {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            transition: transform 0.2s ease, fill 0.2s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+        #repeat-button:hover {
+            transform: scale(1.1);
+        }
+        #repeat-button:active {
+            transform: scale(0.95);
+        }
+        #repeat-button.active {
+            /* The green color is now handled by swapping the image source in JS */
+        }
+
+        @keyframes loading-pulse {
+            0% {
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5), 0 0 0 0px rgba(255, 165, 0, 0.7);
+            }
+            100% {
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5), 0 0 0 10px rgba(255, 165, 0, 0);
+            }
+        }
+
+        #live-tv-button:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+        }
+        
+        #live-tv-button:hover img {
+            transform: scale(1.1);
+        }
+        
+        #oddish-ai-button:hover {
+            transform: scale(1.1);
+        }
+        
+        #oddish-ai-button:hover img {
+            transform: scale(1.1);
+        }
+
+        #interstellar-button:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+        }
+        
+        #interstellar-button:hover img {
+            transform: scale(1.1);
+        }
+
+        /* Ensure Interstellar button is hidden by default and only shown by JS (keypress) */
+        #interstellar-button { display: none; }
+
+        #image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #image-modal.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #image-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 15px;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease;
+            transform-style: preserve-3d;
+        }
+
+        #image-modal-content:hover {
+            transform: perspective(1000px) rotateX(5deg) rotateY(-10deg) scale(1.02);
+            box-shadow: 0 20px 60px rgba(255, 255, 255, 0.4);
+        }
+
+        #image-modal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 15px;
+            border: 4px solid var(--primary-color);
+        }
+
+        #close-image-modal-btn {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            background: var(--primary-color);
+            color: black;
+            border: 3px solid black;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        #close-image-modal-btn:hover {
+            background-color: #ff5252;
+            color: var(--primary-color);
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        .credit-image {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            z-index: 9999;
+            position: relative;
+            /* neutral placeholder look for previously decorative images */
+            background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(0,0,0,0.03));
+            border: 2px dashed rgba(255,255,255,0.04);
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+        }
+
+        .credit-image:hover {
+            transform: scale(1.05);
+            z-index: 9999;
+        }
+
+        #audio-visualizer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none; /* So it doesn't block clicks */
+        }
+
+        #snow-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .switch {
+            position: relative; display: inline-block; width: 54px; height: 30px; vertical-align: middle;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .2s; border-radius: 999px; border: 2px solid var(--primary-color);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px;
+            background-color: var(--primary-color); transition: .2s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2ecc71; border-color: #2ecc71; }
+        input:checked + .slider:before { transform: translateX(24px); }
+    </style>
+    <style>
+        /* Password gate styles */
+        #pw-gate {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(6,6,6,0.85), rgba(12,12,13,0.94));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            color: var(--text-grey);
+            flex-direction: column;
+            gap: 18px;
+            backdrop-filter: blur(6px);
+        }
+        #pw-gate .card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border: 2px solid rgba(75,59,214,0.14);
+            box-shadow: 0 12px 40px rgba(11,10,15,0.7), 0 0 40px rgba(75,59,214,0.06) inset;
+            padding: 28px;
+            border-radius: 16px;
+            width: 360px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        #pw-gate .card:before {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            background: radial-gradient(circle at 10% 20%, rgba(75,59,214,0.06), transparent 8%),
+                        radial-gradient(circle at 90% 80%, rgba(255,255,255,0.02), transparent 10%);
+            transform: rotate(15deg);
+            animation: floatBG 6s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes floatBG { 0% { transform: translateY(-4px) rotate(12deg); } 50% { transform: translateY(4px) rotate(18deg); } 100% { transform: translateY(-4px) rotate(12deg); } }
+        #pw-gate h2 { margin:0 0 6px 0; color:var(--primary-color); font-size:1.2rem; letter-spacing:0.6px; }
+        #pw-gate .sub { font-size:0.9rem; opacity:0.9; margin-bottom:12px; }
+        #pw-gate input[type="password"] {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(0,0,0,0.45);
+            color: var(--text-grey);
+            font-size: 1.1rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: box-shadow .18s ease, transform .12s ease;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+        }
+        #pw-gate input[type="password"]:focus { box-shadow: 0 10px 30px rgba(75,59,214,0.18); transform: translateY(-1px); border-color: rgba(75,59,214,0.6); }
+        #pw-gate .actions { display:flex; gap:10px; margin-top:12px; }
+        #pw-gate button {
+            flex:1;
+            padding: 12px;
+            border-radius: 10px;
+            border: 0;
+            background: linear-gradient(90deg, var(--primary-color), #6f6bff);
+            color: black;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .12s ease, box-shadow .12s ease;
+        }
+        #pw-gate button:active { transform: translateY(1px) scale(.997); }
+        #pw-hint { background: transparent; border: 1px dashed rgba(255,255,255,0.04); color: var(--accent-grey); padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size:0.9rem; }
+        #pw-error { color: #ff6b6b; margin-top:8px; min-height:18px; font-size:0.95em; text-align:center; }
+    </style>
+    <style>
+        .wallpaper-thumb {
+            display: inline-block;
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            /* remove decorative thumbnails; neutral surface */
+            background: linear-gradient(135deg, rgba(0,0,0,0.03), rgba(255,255,255,0.03));
+            cursor: pointer;
+            transition: transform .2s ease, box-shadow .2s ease;
+            flex: 0 0 auto;
+            margin-right: 12px;
+        }
+        .neutral-thumb { width: 96px; height: 64px; }
+        .wallpaper-thumb:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+
+        /* New horizontal wallpaper strip with scrollbar */
+        .wallpaper-strip {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 8px;
+            align-items: center;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-gutter: stable;
+        }
+        .wallpaper-strip::-webkit-scrollbar { height: 10px; }
+        .wallpaper-strip::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 6px; }
+        .wallpaper-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 6px; }
+        .wallpaper-strip:focus { outline: 2px solid rgba(255,255,255,0.12); border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <!-- Password gate (blocks everything until correct PIN) -->
+    <div id="pw-gate" aria-modal="true" role="dialog" aria-label="Site password gate">
+        <div class="card" role="document">
+            <h2>Welcome to QNB</h2>
+            <div class="sub">Enter your 4-digit PIN to continue</div>
+            <input id="pw-input" type="password" inputmode="numeric" autocomplete="one-time-code" aria-label="PIN input" placeholder="●●●●" maxlength="6" />
+            <div class="actions">
+                <button id="pw-submit" type="button">Unlock</button>
+            </div>
+            <div id="pw-error" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+        <div id="loading-content">
+            <div id="loading-spinner"></div>
+            <h1 id="loading-title">QNB</h1>
+            <p id="loading-subtitle">Allow Pop-ups for Cloaking...</p>
+        </div>
+    </div>
+
+    <canvas id="audio-visualizer"></canvas>
+    <canvas id="snow-canvas"></canvas>
+    <video autoplay muted loop id="bg-video">
+        <source src="/mp4-1280 (1).mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div id="dark-mode-overlay"></div>
+    <div class="top-bar">
+        <button id="character" title="Home" aria-label="Home" style="width:64px;height:64px;border:none;background:none;">
+            ⌂ Home
+        </button>
+        <h1 id="title">QNB</h1>
+    </div>
+
+    <div id="client-visitor-counter">
+        <div id="total-visits-label">Total Visits:</div>
+        <div id="client-visit-count">0</div>
+    </div>
+
+    <div class="search-container">
+        <div class="counter-container">
+            <div id="game-counter"></div>
+            <button id="unblock-button" title="Open in new tab">
+                <img src="/pop-up_button_2.png" alt="Open in new tab" style="width: 24px; height: 24px;">
+            </button>
+        </div>
+        
+        <div id="search-bar-results-wrapper">
+            <input type="text" id="search-bar" placeholder="Search for a game...">
+            <div id="search-results"></div>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-top: 15px; justify-content: center;">
+            <button id="live-tv-button" title="Live TV" style="background: none; border: 3px solid var(--primary-color); border-radius: 15px; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background-color: rgba(0, 0, 0, 0.6); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);">
+                <img src="/Live_TV.png" alt="Live TV" style="width: 24px; height: 24px; filter: brightness(0) invert(1); transition: transform 0.3s ease;">
+            </button>
+            
+            <!-- Oddish AI button removed -->
+            
+            <!-- Interstellar moved into search results (no dedicated button in the toolbar) -->
+        </div>
+    </div>
+
+    <button id="dark-mode-toggle" title="Toggle Dark Mode">
+        <img class="dark-icon" src="dark_mode_icon.png" alt="Toggle Dark Mode">
+        <img class="light-icon" src="light_mode_icon.png" alt="Toggle Light Mode">
+    </button>
+
+    <button id="news-button" title="News">
+        <img src="/News.png" alt="News">
+    </button>
+
+    <!-- Credits button removed -->
+
+    <!-- Settings button under Credits -->
+    <button id="settings-button" title="Settings">
+        <img src="/settings.png" alt="Settings">
+    </button>
+
+    <div id="news-sidebar">
+        <div id="news-resize-handle"></div>
+        <div id="news-sidebar-content">
+            <div id="news-sidebar-header">
+                <h2>Latest News</h2>
+                <button id="close-news-btn">×</button>
+            </div>
+            <div id="news-content">
+                <!-- Start the news iframe paused; we will set real src only when opened -->
+                <iframe src="about:blank" style="width: 100%; height: 100%; border: none; border-radius: 4px;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-sidebar">
+        <div id="settings-resize-handle"></div>
+        <div id="settings-sidebar-content">
+            <div id="settings-sidebar-header">
+                <h2>Settings</h2>
+                <button id="close-settings-btn">×</button>
+            </div>
+            <div id="settings-content" style="color: var(--primary-color); font-family: 'PixelOperator-Bold', sans-serif; overflow-y: auto;">
+                <p style="margin-top:0;">Quick settings</p>
+                <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+                    <label for="settings-snow-switch" style="font-size:14px;">Toggle snow</label>
+                    <label class="switch" aria-label="Toggle snow">
+                        <input id="settings-snow-switch" type="checkbox">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+                    <label for="settings-wallpaper-select" style="font-size:14px; min-width:90px;">Wallpaper</label>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                    <div class="wallpaper-strip" tabindex="0" aria-label="Wallpaper gallery">
+                        <button id="wallpaper-bg1-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (1) video"></button>
+                        <button id="wallpaper-bg2-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (2) video"></button>
+                        <button id="wallpaper-bg3-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (3) video"></button>
+                        <button id="wallpaper-bg5-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (5) video"></button>
+                        <button id="wallpaper-bg6-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (6) video"></button>
+                        <button id="wallpaper-bg7-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (7) video"></button>
+                        <button id="wallpaper-bg8-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (8) video"></button>
+                        <button id="wallpaper-bg9-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (9) video"></button>
+                        <button id="wallpaper-bg10-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (10) video"></button>
+                        <button id="wallpaper-bg11-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (11) video"></button>
+                        <button id="wallpaper-bg13-button" class="wallpaper-thumb neutral-thumb" aria-label="Set wallpaper to mp4-1280 (13) video"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="image-modal">
+        <div id="image-modal-content">
+            <img id="modal-image" src="" alt="Credit Image" style="background: linear-gradient(180deg,#eef0f2,#dee2e6); width:100%; height:100%;">
+            <button id="close-image-modal-btn">×</button>
+        </div>
+    </div>
+
+    <!-- music controls removed (hidden) -->
+
+    <div id="game-overlay">
+        <div id="game-container">
+            <div id="game-controls">
+                <button id="close-game-btn"><img src="/close_button.png" alt="Close" style="width: 24px; height: 24px; filter: brightness(0);"></button>
+                <button id="refresh-game-btn"><img src="/refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png" alt="Refresh" style="width: 24px; height: 24px; filter: brightness(0);"></button>
+                <button id="open-new-tab-btn"><img src="/pop-up_button.png" alt="Open in new tab" style="width: 24px; height: 24px; filter: brightness(0);"></button>
+            </div>
+            <iframe id="game-iframe" allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <script type="module" src="/index.js"></script>
+
+    <script>
+        // Password gate script (PIN = 8956)
+        (function(){
+            const GATE_KEY = 'qnb_unlocked_v1'; // persisted in localStorage so gate shows only once
+            // Ensure the gate must be re-entered on every new page open by clearing any previous unlock flag
+            try { localStorage.removeItem(GATE_KEY); } catch(e) { /* noop */ }
+            const LIMITED_PIN = '8956';
+            const FULL_PIN = '8211';
+            const pwGate = document.getElementById('pw-gate');
+            const input = document.getElementById('pw-input');
+            const btn = document.getElementById('pw-submit');
+            const err = document.getElementById('pw-error');
+
+            function unlock() {
+                // default to limited unless full PIN was used — persist across sessions
+                if (!localStorage.getItem(GATE_KEY)) localStorage.setItem(GATE_KEY, 'limited');
+                pwGate.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+            function setAccess(level) {
+                localStorage.setItem(GATE_KEY, level); // 'limited' or 'full'
+                pwGate.style.display = 'none';
+                document.body.style.overflow = '';
+                // Ensure proxy button visibility updates immediately after unlocking
+                if (window.updateProxyVisibility) window.updateProxyVisibility();
+            }
+            function failShake() {
+                err.textContent = 'Incorrect PIN';
+                pwGate.querySelector('.card').animate([{ transform: 'translateX(-6px)' },{ transform: 'translateX(6px)' },{ transform: 'translateX(0)' }], { duration: 300 });
+            }
+
+            // If session already unlocked, hide gate immediately
+            const currentAccess = localStorage.getItem(GATE_KEY);
+            if (currentAccess === 'limited' || currentAccess === 'full') {
+                pwGate.style.display = 'none';
+            } else {
+                // block background scrolling while gate visible
+                document.body.style.overflow = 'hidden';
+                input.focus();
+                btn.addEventListener('click', () => {
+                    const val = input.value.trim();
+                    if (val === FULL_PIN) {
+                        setAccess('full');
+                    } else if (val === LIMITED_PIN) {
+                        setAccess('limited');
+                    } else {
+                        failShake();
+                    }
+                });
+            }
+        })();
+
+        // Add comprehensive about:blank detection and prevention
+        const isInAboutBlank = window.location.protocol === 'about:' || 
+                              window.location.href === 'about:blank' ||
+                              window.location.href.startsWith('about:blank') ||
+                              sessionStorage.getItem('kermit_in_about_blank') === 'true';
+
+        // Use a safe default to avoid Google Classroom 404s on restricted accounts
+        const COVER_URL = 'https://www.google.com';
+
+        // Helper: robustly replace the entire current tab (URL included)
+        function replaceWholeTab(url) {
+            try {
+                // Prefer replace to avoid back button returning to this page
+                window.top.location.replace(url);
+            } catch (e1) {
+                try {
+                    window.location.replace(url);
+                } catch (e2) {
+                    // Fallbacks
+                    try { window.top.location.href = url; } catch (e3) {
+                        window.location.href = url;
+                    }
+                }
+            }
+        }
+
+        // NEW: Single helper that performs the exact "popup" behavior (about:blank + stealth iframe + replace current tab)
+        function openInAboutBlankStealth(targetUrl) {
+            try {
+                if (typeof window.kermit_popup_permission !== 'undefined') {
+                    window.kermit_popup_permission = true; // one-time allow if guard is active
+                }
+                const newWindow = window.open('about:blank', '_blank');
+                if (!newWindow) return;
+
+                try { newWindow.opener = null; } catch (e) { /* noop */ }
+                try { newWindow.sessionStorage.setItem('kermit_in_about_blank', 'true'); } catch (e) { /* noop */ }
+
+                // Build a minimal, stealth iframe page
+                const doc = newWindow.document;
+                doc.open();
+                doc.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+    iframe { width: 100vw; height: 100vh; border: none; display: block; }
+  </style>
+</head>
+<body>
+  <iframe src="${targetUrl}" allow="fullscreen"></iframe>
+</body>
+</html>`);
+                doc.close();
+
+                // Replace the original tab with the cover URL (exactly like the popup flow)
+                replaceWholeTab(COVER_URL);
+            } catch (e) {
+                console.warn('Stealth open failed:', e);
+            }
+        }
+
+        // Set flag if we're in about:blank
+        if (isInAboutBlank) {
+            sessionStorage.setItem('kermit_in_about_blank', 'true');
+            // Add a body class for styling tweaks in about:blank
+            document.documentElement.classList.add('in-aboutblank');
+        }
+
+        // Only include automatic about:blank redirection if NOT already in about:blank
+        if (!isInAboutBlank) {
+            // Automatic about:blank redirection on load if popups are allowed
+            (function() {
+                // This entire block will not run in about:blank, preventing re-triggering.
+                const newWindow = window.open('about:blank', '_blank');
+
+                if (newWindow) {
+                    window.stop(); // Stop loading on the current page
+
+                    // Tell the new window it's in the special context
+                    try {
+                       newWindow.sessionStorage.setItem('kermit_in_about_blank', 'true');
+                    } catch (e) {
+                        console.warn("Could not set sessionStorage on the new window. The popup guard might not be as effective.");
+                    }
+
+                    fetch(window.location.href)
+                        .then(res => res.text())
+                        .then(html => {
+                            const baseHref = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                            const newHtml = html.replace('<head>', `<head><base href="${baseHref}">`);
+
+                            newWindow.document.write(newHtml);
+                            newWindow.document.close();
+
+                            // Replace the original tab with a safe cover URL
+                            replaceWholeTab(COVER_URL);
+                        })
+                        .catch(err => {
+                            console.error('Failed to fetch and write page content:', err);
+                            try {
+                                newWindow.document.write('<html><body>Could not load page content. Please try again.</body></html>');
+                                newWindow.document.close();
+                            } catch(e) {/* Failsafe */}
+                            // Still replace the original tab with cover URL
+                            replaceWholeTab(COVER_URL);
+                        });
+                } else {
+                    // Silently skip if popups are blocked by the browser.
+                    console.log("Popup was blocked. Manual 'Open in new tab' is available.");
+                }
+            })();
+        }
+
+        // Update proxy/unblock button visibility based on access level (callable globally)
+        window.updateProxyVisibility = function() {
+            try {
+                const access = localStorage.getItem('qnb_unlocked_v1'); // 'limited' | 'full' | null
+                const interstellarBtn = document.getElementById('interstellar-button');
+                if (!interstellarBtn) return;
+                // Do not force visibility here; keep hidden by default unless revealed by keypress.
+                interstellarBtn.dataset.isProxy = (access === 'full') ? '1' : '0';
+            } catch (e) { console.warn('updateProxyVisibility failed', e); }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            // Ensure Interstellar button is hidden on every page load (requires pressing "8" to reveal)
+            const _interstellarBtnOnLoad = document.getElementById('interstellar-button');
+            if (_interstellarBtnOnLoad) _interstellarBtnOnLoad.style.display = 'none';
+            
+            // Hide loading overlay after a minimum time and when page is fully loaded
+            const hideLoading = () => {
+                setTimeout(() => {
+                    loadingOverlay.classList.add('hidden');
+                }, 1500); // Show loading for at least 1.5 seconds
+            };
+
+            // Wait for all resources to load
+            if (document.readyState === 'complete') {
+                hideLoading();
+            } else {
+                window.addEventListener('load', hideLoading);
+            }
+
+            const darkModeToggle = document.getElementById('dark-mode-toggle');
+            const body = document.body;
+            const visualizerCanvas = document.getElementById('audio-visualizer');
+            const visualizerCtx = visualizerCanvas.getContext('2d');
+
+            function resizeCanvas() {
+                visualizerCanvas.width = window.innerWidth;
+                visualizerCanvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Ensure this helper exists to avoid ReferenceError when changing theme.
+            function updateMusicPlayerBorder() {
+                const mp = document.getElementById('music-player-container');
+                if (!mp) return;
+                const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary-color') || 'transparent';
+                mp.style.borderColor = primary.trim();
+            }
+
+            // Function to set theme
+            const setTheme = (theme) => {
+                if (theme === 'dark') {
+                    body.classList.add('dark-mode');
+                    document.documentElement.style.setProperty('--primary-color', 'var(--purple-color)');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    body.classList.remove('dark-mode');
+                    document.documentElement.style.setProperty('--primary-color', 'white');
+                    localStorage.setItem('theme', 'light');
+                }
+                updateMusicPlayerBorder();
+            };
+
+            // Toggle theme on button click
+            darkModeToggle.addEventListener('click', () => {
+                if (body.classList.contains('dark-mode')) {
+                    setTheme('light');
+                } else {
+                    setTheme('dark');
+                }
+            });
+
+            // Apply saved theme on page load
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+            } else {
+                // If no theme is saved, set light theme by default.
+                // This ensures the class is present for initial animation states.
+                setTheme('light');
+            }
+
+            // Snow toggle wiring
+            const snowSwitch = document.getElementById('settings-snow-switch');
+            const savedSnow = localStorage.getItem('kermit_snow') === 'on';
+            if (snowSwitch) {
+                snowSwitch.checked = savedSnow;
+                if (savedSnow) window.Snow?.start();
+                snowSwitch.addEventListener('change', () => {
+                    if (snowSwitch.checked) { window.Snow?.start(); localStorage.setItem('kermit_snow','on'); }
+                    else { window.Snow?.stop(); localStorage.setItem('kermit_snow','off'); }
+                });
+            }
+
+            const bgVideoEl = document.getElementById('bg-video');
+            function applyWallpaper(choice) {
+                if (choice === 'video-default') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (1).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (1).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'image-bg1') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = "center / cover no-repeat url('/bg_1.png')";
+                    document.body.style.backgroundAttachment = 'fixed';
+                } else if (choice === 'video-2') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (2).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (2).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'video-3') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (3).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (3).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'image-bg3') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = "center / cover no-repeat url('/bg_3.png')";
+                    document.body.style.backgroundAttachment = 'fixed';
+                } else if (choice === 'video-4') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (4).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (4).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'image-bg4') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = "center / cover no-repeat url('/bg_4.png')";
+                    document.body.style.backgroundAttachment = 'fixed';
+                } else if (choice === 'video-5') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (5).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (5).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'image-bg5') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = "center / cover no-repeat url('/bg_5.png')";
+                    document.body.style.backgroundAttachment = 'fixed';
+                } else if (choice === 'video-6') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (6).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (6).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'image-bg6') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = "center / cover no-repeat url('/bg_6.png')";
+                    document.body.style.backgroundAttachment = 'fixed';
+                } else if (choice === 'video-7') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (7).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (7).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'image-bg7') {
+                    if (bgVideoEl) bgVideoEl.style.display = 'none';
+                    document.body.style.background = "center / cover no-repeat url('/bg_7.png')";
+                    document.body.style.backgroundAttachment = 'fixed';
+                } else if (choice === 'video-8') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (8).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (8).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'video-9') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (9).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (9).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'video-10') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (10).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (10).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'video-11') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (11).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (11).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                } else if (choice === 'video-13') {
+                    if (bgVideoEl) {
+                        if (bgVideoEl.src.endsWith('/mp4-1280 (13).mp4') === false) {
+                            bgVideoEl.src = '/mp4-1280 (13).mp4';
+                        }
+                        bgVideoEl.style.display = '';
+                    }
+                    document.body.style.background = '';
+                }
+            }
+            const savedWallpaper = localStorage.getItem('kermit_wallpaper') || 'video-default';
+            applyWallpaper(savedWallpaper);
+
+            const wallpaperBtn = document.getElementById('wallpaper-bg1-button');
+            if (wallpaperBtn) {
+                // neutral thumbnail sizing (no external image)
+                wallpaperBtn.style.width = '96px';
+                wallpaperBtn.style.height = '64px';
+                wallpaperBtn.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-default');
+                    applyWallpaper('video-default');
+                });
+            }
+            const wallpaperBtn2 = document.getElementById('wallpaper-bg2-button');
+            if (wallpaperBtn2) {
+                const imgProbe2 = new Image(); imgProbe2.src = '/bg_2.png';
+                imgProbe2.onload = () => {
+                    const s = 0.2;
+                    wallpaperBtn2.style.width = (imgProbe2.naturalWidth * s) + 'px';
+                    wallpaperBtn2.style.height = (imgProbe2.naturalHeight * s) + 'px';
+                    wallpaperBtn2.style.backgroundImage = "url('/bg_2.png')";
+                };
+                wallpaperBtn2.addEventListener('click', () => { localStorage.setItem('kermit_wallpaper','video-2'); applyWallpaper('video-2'); });
+            }
+
+            const wallpaperBtn3 = document.getElementById('wallpaper-bg3-button');
+            if (wallpaperBtn3) {
+                const imgProbe3 = new Image(); imgProbe3.src = '/bg_3.png';
+                imgProbe3.onload = () => {
+                    const s3 = 0.2;
+                    wallpaperBtn3.style.width = (imgProbe3.naturalWidth * s3) + 'px';
+                    wallpaperBtn3.style.height = (imgProbe3.naturalHeight * s3) + 'px';
+                    wallpaperBtn3.style.backgroundImage = "url('/bg_3.png')";
+                };
+                wallpaperBtn3.addEventListener('click', () => {
+                    // Toggle between using the video (mp4-1280 (3).mp4) and using the image background.
+                    // We'll set it to the video variant here for consistency with the other buttons.
+                    localStorage.setItem('kermit_wallpaper','video-3');
+                    applyWallpaper('video-3');
+                });
+            }
+
+            const wallpaperBtn4 = document.getElementById('wallpaper-bg4-button');
+            if (wallpaperBtn4) {
+                const imgProbe4 = new Image(); imgProbe4.src = '/bg_4.png';
+                imgProbe4.onload = () => {
+                    const s4 = 0.2;
+                    wallpaperBtn4.style.width = (imgProbe4.naturalWidth * s4) + 'px';
+                    wallpaperBtn4.style.height = (imgProbe4.naturalHeight * s4) + 'px';
+                    wallpaperBtn4.style.backgroundImage = "url('/bg_4.png')";
+                };
+                wallpaperBtn4.addEventListener('click', () => {
+                    // Set to the new video (mp4-1280 (4).mp4) by default; users can select image variant if needed later
+                    localStorage.setItem('kermit_wallpaper','video-4');
+                    applyWallpaper('video-4');
+                });
+            }
+
+            const wallpaperBtn5 = document.getElementById('wallpaper-bg5-button');
+            if (wallpaperBtn5) {
+                const imgProbe5 = new Image(); imgProbe5.src = '/bg_5.png';
+                imgProbe5.onload = () => {
+                    const s5 = 0.2;
+                    wallpaperBtn5.style.width = (imgProbe5.naturalWidth * s5) + 'px';
+                    wallpaperBtn5.style.height = (imgProbe5.naturalHeight * s5) + 'px';
+                    wallpaperBtn5.style.backgroundImage = "url('/bg_5.png')";
+                };
+                wallpaperBtn5.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-5');
+                    applyWallpaper('video-5');
+                });
+            }
+
+            const wallpaperBtn6 = document.getElementById('wallpaper-bg6-button');
+            if (wallpaperBtn6) {
+                const imgProbe6 = new Image(); imgProbe6.src = '/bg_6.png';
+                imgProbe6.onload = () => {
+                    const s6 = 0.2;
+                    wallpaperBtn6.style.width = (imgProbe6.naturalWidth * s6) + 'px';
+                    wallpaperBtn6.style.height = (imgProbe6.naturalHeight * s6) + 'px';
+                    wallpaperBtn6.style.backgroundImage = "url('/bg_6.png')";
+                };
+                wallpaperBtn6.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-6');
+                    applyWallpaper('video-6');
+                });
+            }
+
+            const wallpaperBtn7 = document.getElementById('wallpaper-bg7-button');
+            if (wallpaperBtn7) {
+                const imgProbe7 = new Image(); imgProbe7.src = '/bg_7.png';
+                imgProbe7.onload = () => {
+                    const s7 = 0.2;
+                    wallpaperBtn7.style.width = (imgProbe7.naturalWidth * s7) + 'px';
+                    wallpaperBtn7.style.height = (imgProbe7.naturalHeight * s7) + 'px';
+                    wallpaperBtn7.style.backgroundImage = "url('/bg_7.png')";
+                };
+                wallpaperBtn7.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-7');
+                    applyWallpaper('video-7');
+                });
+            }
+
+            const wallpaperBtn8 = document.getElementById('wallpaper-bg8-button');
+            if (wallpaperBtn8) {
+                const imgProbe8 = new Image(); imgProbe8.src = '/bg_8.png';
+                imgProbe8.onload = () => {
+                    const s8 = 0.2;
+                    wallpaperBtn8.style.width = (imgProbe8.naturalWidth * s8) + 'px';
+                    wallpaperBtn8.style.height = (imgProbe8.naturalHeight * s8) + 'px';
+                    wallpaperBtn8.style.backgroundImage = "url('/bg_8.png')";
+                };
+                wallpaperBtn8.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-8');
+                    applyWallpaper('video-8');
+                });
+            }
+
+            const wallpaperBtn9 = document.getElementById('wallpaper-bg9-button');
+            if (wallpaperBtn9) {
+                wallpaperBtn9.style.width = '96px';
+                wallpaperBtn9.style.height = '64px';
+                wallpaperBtn9.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-9');
+                    applyWallpaper('video-9');
+                });
+            }
+
+            const wallpaperBtn10 = document.getElementById('wallpaper-bg10-button');
+            if (wallpaperBtn10) {
+                const imgProbe10 = new Image(); imgProbe10.src = '/bg_10.png';
+                imgProbe10.onload = () => {
+                    const s10 = 0.2;
+                    wallpaperBtn10.style.width = (imgProbe10.naturalWidth * s10) + 'px';
+                    wallpaperBtn10.style.height = (imgProbe10.naturalHeight * s10) + 'px';
+                    wallpaperBtn10.style.backgroundImage = "url('/bg_10.png')";
+                };
+                wallpaperBtn10.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-10');
+                    applyWallpaper('video-10');
+                });
+            }
+
+            const wallpaperBtn11 = document.getElementById('wallpaper-bg11-button');
+            if (wallpaperBtn11) {
+                const imgProbe11 = new Image(); imgProbe11.src = '/bg_11.png';
+                imgProbe11.onload = () => {
+                    const s11 = 0.2;
+                    wallpaperBtn11.style.width = (imgProbe11.naturalWidth * s11) + 'px';
+                    wallpaperBtn11.style.height = (imgProbe11.naturalHeight * s11) + 'px';
+                    wallpaperBtn11.style.backgroundImage = "url('/bg_11.png')";
+                };
+                wallpaperBtn11.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-11');
+                    applyWallpaper('video-11');
+                });
+            }
+
+            const wallpaperBtn13 = document.getElementById('wallpaper-bg13-button');
+            if (wallpaperBtn13) {
+                const imgProbe13 = new Image(); imgProbe13.src = '/bg_13.png';
+                imgProbe13.onload = () => {
+                    const s13 = 0.2;
+                    wallpaperBtn13.style.width = (imgProbe13.naturalWidth * s13) + 'px';
+                    wallpaperBtn13.style.height = (imgProbe13.naturalHeight * s13) + 'px';
+                    wallpaperBtn13.style.backgroundImage = "url('/bg_13.png')";
+                };
+                wallpaperBtn13.addEventListener('click', () => {
+                    localStorage.setItem('kermit_wallpaper','video-13');
+                    applyWallpaper('video-13');
+                });
+            }
+            // Client-side Visitor Counter Logic
+            const clientVisitCountElement = document.getElementById('client-visit-count');
+            const VISIT_COUNT_KEY = 'kermit_local_visit_count';
+
+            function incrementClientVisitCount() {
+                let count = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
+                // Increment every time the site is opened, even by the same person
+                count++;
+                localStorage.setItem(VISIT_COUNT_KEY, count);
+                clientVisitCountElement.textContent = count;
+            }
+
+            incrementClientVisitCount(); // Call on page load
+
+            // Reveal Interstellar button when pressing the "8" key
+            document.addEventListener('keydown', (e) => {
+                // check for '8' on main keyboard or Numpad8
+                if (e.key === '8' || e.code === 'Numpad8') {
+                    const btn = document.getElementById('interstellar-button');
+                    if (!btn) return;
+                    if (btn.style.display === 'none' || getComputedStyle(btn).display === 'none') {
+                        btn.style.display = 'flex'; // show explicitly (matches button layout)
+                        // ensure proxy dataset matches current access
+                        btn.dataset.isProxy = (localStorage.getItem('qnb_unlocked_v1') === 'full') ? '1' : '0';
+                    } else {
+                        btn.style.display = 'none'; // toggle off if already visible
+                    }
+                }
+            });
+        });
+
+        const gameData = {
+            'super smash bros.': 'https://k-web-topaz.vercel.app/games/supersmashbros/index.html',
+            'pokemon emerald': 'https://k-web-topaz.vercel.app/games/pokemonemerald/index.html',
+            'street fighter 2': 'https://k-web-topaz.vercel.app/games/streetfighter2/index.html',
+            'mario kart 64': 'https://k-web-topaz.vercel.app/games/mariokart64/index.html',
+            'cooking mama': 'https://k-web-topaz.vercel.app/games/cookingmama/index.html',
+            'superstar saga': 'https://k-web-topaz.vercel.app/games/superstarSaga/index.html',
+            'sonic advance 2': 'https://k-web-topaz.vercel.app/games/sonicadvance2/index.html',
+            'spirit tracks': 'https://k-web-topaz.vercel.app/games/spirittracks/index.html',
+            'kirby mass attack': 'https://k-web-topaz.vercel.app/games/kirbymassattack/index.html',
+            'animal crossing wild world': 'https://k-web-topaz.vercel.app/games/animalcrossingwildworld/index.html',
+            'super mario bros 3': 'https://k-web-topaz.vercel.app/games/supermariobros3/index.html',
+            'slope': 'https://k-web-topaz.vercel.app/games/slope/index.html',
+            'cookie clicker': 'https://k-web-topaz.vercel.app/games/cookieclicker/index.html',
+            'crossy road': 'https://k-web-topaz.vercel.app/games/crossy/index.html',
+            'friday night funkin\'': 'https://k-web-topaz.vercel.app/games/fnf/index.html',
+            'skibidi toilet 1v100': 'https://k-web-topaz.vercel.app/games/skibidi1v100/index.html',
+            'geometry dash': 'https://k-web-topaz.vercel.app/games/gdlite/index.html',
+            'pizza tower': 'https://k-web-topaz.vercel.app/games/pizzatower/',
+            'subway surfers': 'https://k-web-topaz.vercel.app/games/subwaysurfers/index.html',
+            'flappy bird': 'https://k-web-topaz.vercel.app/games/flappy/index.html',
+            'papas pizzaria': 'https://k-web-topaz.vercel.app/games/papaspizzaria/index.html',
+            'papas burgeria': 'https://k-web-topaz.vercel.app/games/papasburgeria/index.html',
+            'sm64': 'https://k-web-topaz.vercel.app/games/sm64/index.html',
+            'run 3': 'https://k-web-topaz.vercel.app/games/run3/index.html',
+            'bitlife': 'https://k-web-topaz.vercel.app/games/bitlife/index.html',
+            'minecraft': 'https://k-web-topaz.vercel.app/games/mc/index.html',
+            'temple run 2': 'https://k-web-topaz.vercel.app/games/templerun2/index.html',
+            'duck life 4': 'https://k-web-topaz.vercel.app/games/ducklife4/index.html',
+            'dino game': 'https://k-web-topaz.vercel.app/games/dinogame/index.html',
+            'jetpack joyride': 'https://k-web-topaz.vercel.app/games/jetpackjoyride/index.html',
+            'retro bowl': 'https://k-web-topaz.vercel.app/games/retrobowl/index.html',
+            'fruit ninja': 'https://k-web-topaz.vercel.app/games/fruitninja/index.html',
+            '2048': 'https://k-web-topaz.vercel.app/games/2048/index.html',
+            'tetris': 'https://k-web-topaz.vercel.app/games/tetris/index.html',
+            'fancy pants adventure': 'https://k-web-topaz.vercel.app/games/fancypantsadventure/index.html',
+            'happy wheels': 'https://k-web-topaz.vercel.app/games/happywheels/index.html',
+            'papas hot doggeria': 'https://k-web-topaz.vercel.app/games/papashotdoggeria/index.html',
+            'paper io 2': 'https://k-web-topaz.vercel.app/games/paperio2/index.html',
+            'superhot': 'https://k-web-topaz.vercel.app/games/superhot/index.html',
+            'the binding of isaac': 'https://k-web-topaz.vercel.app/games/thebindingofisaac/index.html',
+            'townscaper': 'https://k-web-topaz.vercel.app/games/townscaper/index.html',
+            'tunnel rush': 'https://k-web-topaz.vercel.app/games/tunnelrush/index.html',
+            'theme hotel': 'https://k-web-topaz.vercel.app/games/themehotel/index.html',
+            'escaping the prison': 'https://k-web-topaz.vercel.app/games/escapingtheprison/index.html',
+            'stealing the diamond': 'https://k-web-topaz.vercel.app/games/stealingthediamond/index.html',
+            'infiltrating the airship': 'https://k-web-topaz.vercel.app/games/infiltratingtheairship/index.html',
+            'fleeing the complex': 'https://k-web-topaz.vercel.app/games/fleeingthecomplex/index.html',
+            'the impossible quiz': 'https://k-web-topaz.vercel.app/games/theimpossiblequiz/index.html',
+            'solitaire': 'https://k-web-topaz.vercel.app/games/solitaire/index.html',
+            'drift hunters': 'https://k-web-topaz.vercel.app/games/drifthunters/index.html',
+            'vex 6': 'https://k-web-topaz.vercel.app/games/vex6/index.html',
+            'among us': 'https://k-web-topaz.vercel.app/games/amongus/index.html',
+            'surf': 'https://k-web-topaz.vercel.app/games/surf/index.html',
+            'moto x3m': 'https://k-web-topaz.vercel.app/games/motox3m/index.html',
+            'fnaf': 'https://k-web-topaz.vercel.app/games/fnaf/index.html',
+            'fnaf 2': 'https://k-web-topaz.vercel.app/games/fnaf-2/index.html',
+            'fnaf 3': 'https://k-web-topaz.vercel.app/games/fnaf-3/index.html',
+            'fnaf 4': 'https://k-web-topaz.vercel.app/games/fnaf-4/index.html',
+            'riddle school 1': 'https://k-web-topaz.vercel.app/games/riddleschool/riddleschool1/index.html',
+            'riddle school 2': 'https://k-web-topaz.vercel.app/games/riddleschool/riddleschool2/index.html',
+            'riddle school 3': 'https://k-web-topaz.vercel.app/games/riddleschool/riddleschool3/index.html',
+            'riddle school 4': 'https://k-web-topaz.vercel.app/games/riddleschool/riddleschool4/index.html',
+            'riddle school 5': 'https://k-web-topaz.vercel.app/games/riddleschool/riddleschool5/index.html',
+            'riddle transfer': 'https://k-web-topaz.vercel.app/games/riddleschool/riddletransfer/index.html',
+            'riddle transfer 2': 'https://k-web-topaz.vercel.app/games/riddleschool/riddletransfer2/index.html',
+            'drift boss': 'https://k-web-topaz.vercel.app/games/driftboss/index.html',
+            'pacman': 'https://k-web-topaz.vercel.app/games/pacman/index.html',
+            'papas pancakeria': 'https://k-web-topaz.vercel.app/games/papaspancakeria/index.html',
+            'rooftop': 'https://k-web-topaz.vercel.app/games/rooftop/index.html',
+            'baldis basics': 'https://k-web-topaz.vercel.app/games/baldisbasics/index.html',
+            'bob the robber 2': 'https://k-web-topaz.vercel.app/games/bobtherobber2/index.html',
+            'minesweeper': 'https://k-web-topaz.vercel.app/games/minesweeper/index.html',
+            'pokemon fire red': 'https://k-web-topaz.vercel.app/games/pokemonfireRed/index.html',
+            'super mario bros': 'https://k-web-topaz.vercel.app/games/supermariobros/index.html',
+            'super mario kart': 'https://k-web-topaz.vercel.app/games/supermariokart/index.html',
+            'super mario world': 'https://k-web-topaz.vercel.app/games/supermarioworld/index.html',
+            'there is no game': 'https://k-web-topaz.vercel.app/games/thereisnogame/index.html',
+            'worlds hardest game': 'https://k-web-topaz.vercel.app/games/worldshardestgame/index.html',
+            'castlevania': 'https://k-web-topaz.vercel.app/games/castlevania/index.html',
+            'donkey kong': 'https://k-web-topaz.vercel.app/games/donkeykong/index.html',
+            'dr mario': 'https://k-web-topaz.vercel.app/games/drmario/index.html',
+            'metroid': 'https://k-web-topaz.vercel.app/games/metroid/index.html',
+            'super mario bros 2': 'https://k-web-topaz.vercel.app/games/supermariobros2/index.html',
+            'the legend of zelda': 'https://k-web-topaz.vercel.app/games/thelegendofzelda/index.html',
+            'warioware': 'https://k-web-topaz.vercel.app/games/warioware/index.html',
+            'yoshis island': 'https://k-web-topaz.vercel.app/games/yoshisisland/index.html',
+            'donkey kong land': 'https://k-web-topaz.vercel.app/games/donkeykongland/index.html',
+            'kirbys dreamland': 'https://k-web-topaz.vercel.app/games/kirbysdreamland/index.html',
+            'super mario land': 'https://k-web-topaz.vercel.app/games/supermarioland/index.html',
+            'dogeminer': 'https://k-web-topaz.vercel.app/games/dogeminer/index.html',
+            'tanuki sunset': 'https://k-web-topaz.vercel.app/games/tanukisunset/index.html',
+            'aquapark slides': 'https://k-web-topaz.vercel.app/games/aquaparkslides/index.html',
+            'color switch': 'https://k-web-topaz.vercel.app/games/colorswitch/index.html',
+            'papas freezeria': 'https://k-web-topaz.vercel.app/games/papasfreezeria/index.html',
+            'btd': 'https://k-web-topaz.vercel.app/games/btd/btd/index.html',
+            'btd 2': 'https://k-web-topaz.vercel.app/games/btd/btd2/index.html',
+            'btd 3': 'https://k-web-topaz.vercel.app/games/btd/btd3/index.html',
+            'btd 4': 'https://k-web-topaz.vercel.app/games/btd/btd4/index.html',
+            'bomberman': 'https://k-web-topaz.vercel.app/games/bomberman/index.html',
+            'fire emblem': 'https://k-web-topaz.vercel.app/games/fireemblem/index.html',
+            'ice climber': 'https://k-web-topaz.vercel.app/games/iceclimber/index.html',
+            'mario kart super circuit': 'https://k-web-topaz.vercel.app/games/mariokartsupercircuit/index.html',
+            'pokemon leaf green': 'https://k-web-topaz.vercel.app/games/pokemonleafgreen/index.html',
+            'pokemon ruby': 'https://k-web-topaz.vercel.app/games/pokemonruby/index.html',
+            'pokemon sapphire': 'https://k-web-topaz.vercel.app/games/pokemonsapphire/index.html',
+            'adofai': 'https://k-web-topaz.vercel.app/games/adofai/index.html',
+            'super smash flash': 'https://k-web-topaz.vercel.app/games/supersmashflash/index.html',
+            'super meat boy': 'https://k-web-topaz.vercel.app/games/supermeatboy/index.html',
+            'stickman hook': 'https://k-web-topaz.vercel.app/games/stickmanhook/index.html',
+            'defend the tank': 'https://k-web-topaz.vercel.app/games/defendthetank/index.html',
+            'sort the court': 'https://k-web-topaz.vercel.app/games/sortthecourt/index.html',
+            'this is the only level': 'https://k-web-topaz.vercel.app/games/thisistheonlylevel/index.html',
+            'run': 'https://k-web-topaz.vercel.app/games/run/index.html',
+            'run 2': 'https://k-web-topaz.vercel.app/games/run2/index.html',
+            'battleships': 'https://k-web-topaz.vercel.app/games/battleships/index.html',
+            'breaking the bank': 'https://k-web-topaz.vercel.app/games/breakingthebank/index.html',
+            'duck life': 'https://k-web-topaz.vercel.app/games/ducklife/index.html',
+            'duck life 2': 'https://k-web-topaz.vercel.app/games/ducklife2/index.html',
+            'duck life 3': 'https://k-web-topaz.vercel.app/games/ducklife3/index.html',
+            'slope': 'https://k-web-topaz.vercel.app/games/slope/index.html',
+            'line rider': 'https://k-web-topaz.vercel.app/games/linerider/index.html',
+            'mario combat': 'https://k-web-topaz.vercel.app/games/mariocombat/index.html',
+            'raft wars 2': 'https://k-web-topaz.vercel.app/games/raftwars2/index.html',
+            'space invaders': 'https://k-web-topaz.vercel.app/games/spaceinvaders/index.html',
+            'mario kart ds': 'https://k-web-topaz.vercel.app/games/mariokartds/index.html',
+            'new super mario bros': 'https://k-web-topaz.vercel.app/games/newsupermariobros/index.html',
+            'nintendogs': 'https://k-web-topaz.vercel.app/games/nintendogs/index.html',
+            'sm64 ds': 'https://k-web-topaz.vercel.app/games/sm64ds/index.html',
+            'gun mayhem': 'https://k-web-topaz.vercel.app/games/gunmayhem/index.html',
+            'learn to fly': 'https://k-web-topaz.vercel.app/games/learntofly/index.html',
+            'rooftop 2': 'https://k-web-topaz.vercel.app/games/rooftop2/index.html',
+            'fireboy and watergirl': 'https://k-web-topaz.vercel.app/games/fireboywatergirl/index.html',
+            'chibi knight': 'https://k-web-topaz.vercel.app/games/chibiknight/index.html',
+            'cluster rush': 'https://k-web-topaz.vercel.app/games/clusterrush/index.html',
+            'doodle defender': 'https://k-web-topaz.vercel.app/games/doodledefender/index.html',
+            'learn to fly 2': 'https://k-web-topaz.vercel.app/games/learntofly2/index.htm',
+            'papas scooperia': 'https://k-web-topaz.vercel.app/games/papasscooperia/index.html',
+            'papas sushiria': 'https://k-web-topaz.vercel.app/games/papassushiria/index.html',
+            'papas wingeria': 'https://k-web-topaz.vercel.app/games/papaswingeria/index.html',
+            'raft wars': 'https://k-web-topaz.vercel.app/games/raftwars/index.html',
+            'unfair mario': 'https://k-web-topaz.vercel.app/games/unfairmario/index.html',
+            'boxing physics 2': 'https://k-web-topaz.vercel.app/games/boxingphysics2/index.html',
+            'ace attorney': 'https://k-web-topaz.vercel.app/games/aceattorney/index.html',
+            'metal gear solid': 'https://k-web-topaz.vercel.app/games/metalgearsolid/index.html',
+            'mother 3': 'https://k-web-topaz.vercel.app/games/mother3/index.html',
+            'pokemon diamond': 'https://k-web-topaz.vercel.app/games/pokemondiamond/index.html',
+            'pokemon platinum': 'https://k-web-topaz.vercel.app/games/pokemonplatinum/index.html',
+            'pokemon soulsilver': 'https://k-web-topaz.vercel.app/games/pokemonsoulsilver/index.html',
+            'advance wars': 'https://k-web-topaz.vercel.app/games/advancewars/index.html',
+            'banjo pilot': 'https://k-web-topaz.vercel.app/games/banjopilot/index.html',
+            'super monkey ball jr': 'https://k-web-topaz.vercel.app/games/supermonkeyballjr/index.html',
+            'the impossible quiz 2': 'https://k-web-topaz.vercel.app/games/theimpossiblequiz2/index.htm',
+            'papas donuteria': 'https://k-web-topaz.vercel.app/games/papasdonuteria/index.html',
+            'fancy pants adventure 2': 'https://k-web-topaz.vercel.app/games/fancypantsadventure2/index.html',
+            'tiny fishing': 'https://k-web-topaz.vercel.app/games/tinyfishing/index.html',
+            'big red button': 'https://k-web-topaz.vercel.app/games/bigredbutton/index.html',
+            'achievement unlocked': 'https://k-web-topaz.vercel.app/games/achievementunlocked/index.html',
+            'sonic advance': 'https://k-web-topaz.vercel.app/games/sonicadvance/index.html',
+            'worms world party': 'https://k-web-topaz.vercel.app/games/wormsworldparty/index.html',
+            'bad ice-cream': 'https://k-web-topaz.vercel.app/games/badicecream/index.html',
+            'bad ice-cream 2': 'https://k-web-topaz.vercel.app/games/badicecream2/index.html',
+            'bad ice-cream 3': 'https://k-web-topaz.vercel.app/games/badicecream3/index.html',
+            'adventure capitalist': 'https://k-web-topaz.vercel.app/games/adventurecapitalist/index.html',
+            'monkey mart': 'https://k-web-topaz.vercel.app/games/monkeymart/index.html',
+            'doom 64': 'https://k-web-topaz.vercel.app//games/doom64/index.html',
+            'banjo-kazooie': 'https://k-web-topaz.vercel.app/games/banjokazooie/index.html',
+            'donkey kong 64': 'https://k-web-topaz.vercel.app/games/donkeykong64/index.html',
+            'f-zero x': 'https://k-web-topaz.vercel.app/games/fzerox/index.html',
+            'kirby 64': 'https://k-web-topaz.vercel.app/games/kirby64/index.html',
+            'mario party': 'https://k-web-topaz.vercel.app/games/marioparty/index.html',
+            'mario party 2': 'https://k-web-topaz.vercel.app/games/marioparty2/index.html',
+            'ocarina of time': 'https://k-web-topaz.vercel.app/games/ocarinaoftime/index.html',
+            'star fox 64': 'https://k-web-topaz.vercel.app/games/starfox64/index.html',
+            'getaway shootout': 'https://k-web-topaz.vercel.app/games/getawayshootout/index.html',
+            'rabbit samurai': 'https://k-web-topaz.vercel.app/games/rabbitsamurai/index.html',
+            'mariopartyds': 'https://k-web-topaz.vercel.app/games/mariopartyds/index.html',
+            'professor layton': 'https://k-web-topaz.vercel.app/games/professorlayton/index.html',
+            'scribblenauts': 'https://k-web-topaz.vercel.app/games/scribblenauts/index.html',
+            'advance wars 2': 'https://k-web-topaz.vercel.app/games/advancewars2/index.html',
+            'harvest moon': 'https://k-web-topaz.vercel.app/games/harvestmoon/index.html',
+            'mariotennis': 'https://k-web-topaz.vercel.app/games/mariotennis/index.html',
+            'megamanzero': 'https://k-web-topaz.vercel.app/games/megamanzero/index.html',
+            'super mario 64': 'https://k-web-topaz.vercel.app/games/sm64/index.html',
+            'rocket soccer': 'https://k-web-topaz.vercel.app/games/rocketsoccer/index.html',
+            'hole io': 'https://k-web-topaz.vercel.app/games/holeio/index.html',
+            'legends of zelda: spirit tracks': 'https://k-web-topaz.vercel.app/games/spirittracks/index.html',
+            'lazy jump 3d': 'https://k-web-topaz.vercel.app/games/lazyjump3d/index.html',
+            'bad time simulator': 'https://k-web-topaz.vercel.app/games/badtimesimulator/index.html',
+            'gun fest': 'https://k-web-topaz.vercel.app/games/gunfest/index.html',
+            '10 minutes till dawn': 'https://k-web-topaz.vercel.app/games/10minutestilldawn/index.html',
+            'pokemon stadium': 'https://k-web-topaz.vercel.app/games/pokemonstadium/index.html',
+            'clicker heroes': 'https://k-web-topaz.vercel.app/games/clickerheroes/index.html',
+            'redball 4': 'https://k-web-topaz.vercel.app/games/redball4/index.html',
+            'pokemon mystery dungeon': 'https://k-web-topaz.vercel.app/games/pokemonmysterydungeon/index.html',
+            'pokemon unbound': 'https://k-web-topaz.vercel.app/games/pokemonunbound/index.html',
+            'papas cheeseria': 'https://k-web-topaz.vercel.app/games/papascheeseria/index.html',
+            'papas cupcakeria': 'https://k-web-topaz.vercel.app/games/papascupcakeria/index.html',
+            'papas bakeria': 'https://k-web-topaz.vercel.app/games/papasbakeria/index.html',
+            'papas pastaria': 'https://k-web-topaz.vercel.app/games/papaspastaria/index.html',
+            'gun mayhem 2': 'https://k-web-topaz.vercel.app/games/gunmayhem2/index.html',
+            'gun mayhem redux': 'https://k-web-topaz.vercel.app/games/gunmayhemredux/index.html',
+            'achievement unlocked 2': 'https://k-web-topaz.vercel.app/games/achievementunlocked2/index.html',
+            'achievement unlocked 3': 'https://k-web-topaz.vercel.app/games/achievementunlocked3/index.html',
+            'factory balls': 'https://k-web-topaz.vercel.app/games/factoryballs/index.html',
+            'skywire': 'https://k-web-topaz.vercel.app/games/skywire/index.html',
+            'super mario flash': 'https://k-web-topaz.vercel.app/games/supermarioflash/index.html',
+            'golden sun': 'https://k-web-topaz.vercel.app/games/goldensun/index.html',
+            'metroid fusion': 'https://k-web-topaz.vercel.app/games/metroidfusion/index.html',
+            'dbz supersonic warriors': 'https://k-web-topaz.vercel.app/games/dbzsupersonicwarriors/index.html',
+            'warioland 4': 'https://k-web-topaz.vercel.app/games/warioland4/index.html',
+            'duck life 5': 'https://k-web-topaz.vercel.app/games/ducklife5/index.html',
+            'learn to fly 3': 'https://k-web-topaz.vercel.app/games/learntofly3/index.html',
+            'bloxors': 'https://k-web-topaz.vercel.app/games/bloxors/index.html',
+            'electricman 2': 'https://k-web-topaz.vercel.app/games/electricman2/index.html',
+            'portal': 'https://k-web-topaz.vercel.app/games/portal/index.html',
+            'portal 2': 'https://k-web-topaz.vercel.app/games/portal2/index.html',
+            'skywire 2': 'https://k-web-topaz.vercel.app/games/skywire2/index.html',
+            'duck life 6': 'https://k-web-topaz.vercel.app/games/ducklife6/index.html',
+            'boxing random': 'https://k-web-topaz.vercel.app/games/boxingrandom/index.html',
+            'cell machine': 'https://k-web-topaz.vercel.app/games/cellmachine/index.html',
+            'stickman boost': 'https://k-web-topaz.vercel.app/games/stickmanboost/index.html',
+            'vex 3': 'https://k-web-topaz.vercel.app/games/vex3/index.html',
+            'vex 4': 'https://k-web-topaz.vercel.app/games/vex4/index.html',
+            'choose your weapon 2': 'https://k-web-topaz.vercel.app/games/chooseyourweapon2/index.html',
+            'choose your weapon 3': 'https://k-web-topaz.vercel.app/games/chooseyourweapon3/index.html',
+            'connect 4': 'https://k-web-topaz.vercel.app/games/connect4/index.html',
+            'electric box': 'https://k-web-topaz.vercel.app/games/electricbox/index.html',
+            'minecraft tower defence 2': 'https://k-web-topaz.vercel.app/games/mctowerdefence2/index.html',
+            'cars 2': 'https://k-web-topaz.vercel.app/games/cars2/index.html',
+            'cooking mama': 'https://k-web-topaz.vercel.app/games/cookingmama/index.html',
+            'adventure time': 'https://k-web-topaz.vercel.app/games/adventuretime/index.html',
+            'garfield gets real': 'https://k-web-topaz.vercel.app/games/garfieldgetsreal/index.html',
+            'wario ware touched': 'https://k-web-topaz.vercel.app/games/wariowaretouched/index.html',
+            'kirbypowerpaintbrush': 'https://k-web-topaz.vercel.app/games/kirbypowerpaintbrush/index.html',
+            'sonic and knuckles': 'https://k-web-topaz.vercel.app/games/sonicandknuckles/index.html',
+            'altered beast': 'https://k-web-topaz.vercel.app/games/alteredbeast/index.html',
+            'sonic spinball': 'https://k-web-topaz.vercel.app/games/sonicspinball/index.html',
+            'sonic the hedgehog 3': 'https://k-web-topaz.vercel.app/games/sonicthehedgehog3/index.html',
+            'street so frage': 'https://k-web-topaz.vercel.app/games/streetsofrage/index.html',
+            'golden axe': 'https://k-web-topaz.vercel.app/games/goldenaxe/index.html',
+            'kirby amazing mirror': 'https://k-web-topaz.vercel.app/games/kirbyamazingmirror/index.html',
+            'champion island': 'https://k-web-topaz.vercel.app/games/championisland/index.html',
+            'supermario construct': 'https://k-web-topaz.vercel.app/games/supermarioconstruct/index.html',
+            'clicker heroes': 'https://k-web-topaz.vercel.app/games/clickerheroes/index.html',
+            'stairrace 3d': 'https://k-web-topaz.vercel.app/games/stairrace3d/index.html',
+            'slope 2': 'https://k-web-topaz.vercel.app/games/slope2/index.html',
+            'paperio 3d': 'https://k-web-topaz.vercel.app/games/paperio3d/index.html',
+            'motoX3m spooky': 'https://k-web-topaz.vercel.app/games/motox3mspooky/index.html',
+            'motoX3m winter': 'https://k-web-topaz.vercel.app/games/motox3mwinter/index.html',
+            'papas tacomia': 'https://k-web-topaz.vercel.app/games/papastacomia/index.html',
+            'ovo': 'https://k-web-topaz.vercel.app/games/ovo/index.html',
+            'knife hit': 'https://k-web-topaz.vercel.app/games/knifehit/index.html',
+            'burger and frights': 'https://k-web-topaz.vercel.app/games/burgerandfrights/index.html',
+            'chess': 'https://k-web-topaz.vercel.app/games/chess/index.html',
+            'fnf midfight': 'https://k-web-topaz.vercel.app/games/fnfmidfight/index.html',
+            'thumb fighter': 'https://k-web-topaz.vercel.app/games/thumbfighter/index.html',
+            'snow battle io': 'https://k-web-topaz.vercel.app/games/snowbattleio/index.html',
+            'lazy jump 3d': 'https://k-web-topaz.vercel.app/games/lazyjump3d/index.html',
+            'go ball': 'https://k-web-topaz.vercel.app/games/goball/index.html',
+            'flippy fish': 'https://k-web-topaz.vercel.app/games/flippyfish/index.html',
+            'shop empire': 'https://k-web-topaz.vercel.app/games/shopempire/index.html',
+            'monster brawl': 'https://k-web-topaz.vercel.app/games/monsterbrawl/index.html',
+            'multitask': 'https://k-web-topaz.vercel.app/games/multitask/index.html',
+            'shift': 'https://k-web-topaz.vercel.app/games/shift/index.html',
+            'shift 2': 'https://k-web-topaz.vercel.app/games/shift2/index.html',
+            'shift 3': 'https://k-web-topaz.vercel.app/games/shift3/index.html',
+            'shift4 ': 'https://k-web-topaz.vercel.app/games/shift4/index.html',
+            'monopoly': 'https://k-web-topaz.vercel.app/games/monopoly/index.html',
+            'picrossds': 'https://k-web-topaz.vercel.app/games/picrossds/index.html',
+            'wario ware diy': 'https://k-web-topaz.vercel.app/games/wariowarediy/index.html',
+            'pizza tower': 'https://k-web-topaz.vercel.app/games/pizzatower/index.html',
+            'territorial io': 'https://k-web-topaz.vercel.app/games/territorialio/index.html',
+            '1v1 lol': 'https://1v1-lol-online-github-io.vercel.app/file/',
+            'ballistic chickens': 'https://k-web-topaz.vercel.app/games/ballisticchickens/index.html',
+            'basketbros io': 'https://k-web-topaz.vercel.app/games/basketbrosio/index.html',
+            'death run 3d': 'https://k-web-topaz.vercel.app/games/deathrun3d/index.html',
+            'soccer random': 'https://k-web-topaz.vercel.app/games/soccerrandom/index.html',
+            'sprinter': 'https://k-web-topaz.vercel.app/games/sprinter/index.html',
+            'tron': 'https://k-web-topaz.vercel.app/games/tron/index.html',
+            '1 on 1 soccer': 'https://k-web-topaz.vercel.app/games/1on1soccer/index.html',
+            'bad time simulator': 'https://k-web-topaz.vercel.app/games/badtimesimulator/index.html',
+            'amazing rope police': 'https://k-web-topaz.vercel.app/games/amazingropepolice/index.html',
+            'celeste': 'https://k-web-topaz.vercel.app/games/celeste/index.html',
+            'just fall lol': 'https://k-web-topaz.vercel.app/games/justfalllol/index.html',
+            'ngon': 'https://k-web-topaz.vercel.app/games/ngon/index.html',
+            'rocket soccer': 'https://k-web-topaz.vercel.app/games/rocketsoccer/index.html',
+            'stick man climb': 'https://k-web-topaz.vercel.app/games/stickmanclimb/index.html',
+            'osumania': 'https://k-web-topaz.vercel.app/games/osumania/index.html',
+            'helix jump': 'https://k-web-topaz.vercel.app/games/helixjump/index.html',
+            'dadish': 'https://k-web-topaz.vercel.app/games/dadish/index.html',
+            'dadish 2': 'https://k-web-topaz.vercel.app/games/dadish2/index.html',
+            'dadish 3': 'https://k-web-topaz.vercel.app/games/dadish3/index.html',
+            'snow rider 3d': 'https://k-web-topaz.vercel.app/games/snowrider3d/index.html',
+            'tube jumpers': 'https://k-web-topaz.vercel.app/games/tubejumpers/index.html',
+            'yohoho': 'https://k-web-topaz.vercel.app/games/yohoho/index.html',
+            '10 minutes till dawn': 'https://k-web-topaz.vercel.app/games/10minutestilldawn/index.html',
+            'volley random': 'https://k-web-topaz.vercel.app/games/volleyrandom/index.html',
+            'water works': 'https://k-web-topaz.vercel.app/games/waterworks/index.html',
+            'geometry rash': 'https://k-web-topaz.vercel.app/games/geometryrash/index.html',
+            'hole io': 'https://k-web-topaz.vercel.app/games/holeio/index.html',
+            'sand trix': 'https://k-web-topaz.vercel.app/games/sandtrix/index.html',
+            'shape shipper': 'https://k-web-topaz.vercel.app/games/shapeshipper/index.html',
+            'slope ball': 'https://k-web-topaz.vercel.app/games/slopeball/index.html',
+            'stickmang olf': 'https://k-web-topaz.vercel.app/games/stickmangolf/index.html',
+            'tabs': 'https://k-web-topaz.vercel.app/games/tabs/index.html',
+            'watermelon game': 'https://k-web-topaz.vercel.app/games/watermelongame/index.html',
+            'wallsmash': 'https://k-web-topaz.vercel.app/games/wallsmash/index.html',
+            'crimson fantasia': 'https://k-web-topaz.vercel.app/games/crimsonfantasia/index.html',
+            'final fantasy tactics advance': 'https://k-web-topaz.vercel.app/games/finalfantasytacticsadvance/index.html',
+            'drill dozer': 'https://k-web-topaz.vercel.app/games/drilldozer/index.html',
+            'advance wars dayo fruin': 'https://k-web-topaz.vercel.app/games/advancewarsdayofruin/index.html',
+            'castlevania dawn of sorrow': 'https://k-web-topaz.vercel.app/games/castlevaniadawnofsorrow/index.html',
+            'castlevania order of ecclesia': 'https://k-web-topaz.vercel.app/games/castlevaniaorderofecclesia/index.html',
+            'mario and luigi partners in time': 'https://k-web-topaz.vercel.app/games/marioandluigipartnersintime/index.html',
+            'comixzone': 'https://k-web-topaz.vercel.app/games/comixzone/index.html',
+            'ecco the dolphin': 'https://k-web-topaz.vercel.app/games/eccothedolphin/index.html',
+            'gun star heroes': 'https://k-web-topaz.vercel.app/games/gunstarheroes/index.html',
+            'phantasy star iv': 'https://k-web-topaz.vercel.app/games/phantasystariv/index.html',
+            'rangerx': 'https://k-web-topaz.vercel.app/games/rangerx/index.html',
+            'ristar': 'https://k-web-topaz.vercel.app/games/ristar/index.html',
+            'shining force': 'https://k-web-topaz.vercel.app/games/shiningforce/index.html',
+            'shinobi iii': 'https://k-web-topaz.vercel.app/games/shinobiiii/index.html',
+            'sonic the hedgehog': 'https://k-web-topaz.vercel.app/games/sonicthehedgehog/index.html',
+            'sonic the hedgehog2': 'https://k-web-topaz.vercel.app/games/sonicthehedgehog2/index.html',
+            'streets of rage 2': 'https://k-web-topaz.vercel.app/games/streetsofrage2/index.html',
+            'vectorman': 'https://k-web-topaz.vercel.app/games/vectorman/index.html',
+            'vectorman 2': 'https://k-web-topaz.vercel.app/games/vectorman2/index.html',
+            'illusion of gaia': 'https://k-web-topaz.vercel.app/games/illusionofgaia/index.html',
+            'pokemon yellow': 'https://k-web-topaz.vercel.app/games/pokemonyellow/index.html',
+            'abuda the alien': 'https://k-web-topaz.vercel.app/games/abudathealien/index.html',
+            'battle beavers': 'https://k-web-topaz.vercel.app/games/battlebeavers/index.html',
+            'control craft 2': 'https://k-web-topaz.vercel.app/games/controlcraft2/index.html',
+            'ageo f war': 'https://k-web-topaz.vercel.app/games/ageofwar/index.html',
+            'age of war 2': 'https://k-web-topaz.vercel.app/games/ageofwar2/index.html',
+            'amorphous': 'https://k-web-topaz.vercel.app/games/amorphous/index.html',
+            'bubble spinner': 'https://k-web-topaz.vercel.app/games/bubblespinner/index.html',
+            'crush the castle': 'https://k-web-topaz.vercel.app/games/crushthecastle/index.html',
+            'crush the castle 2': 'https://k-web-topaz.vercel.app/games/c!rushthecastle2/index.html',
+            'epic battle fantasy': 'https://k-web-topaz.vercel.app/games/epicbattlefantasy/index.html',
+            'epic battle fantasy 2': 'https://k-web-topaz.vercel.app/games/epicbattlefantasy2/index.html',
+            'epic battle fantasy 3': 'https://k-web-topaz.vercel.app/games/epicbattlefantasy3/index.html',
+            'fancy pants adventure 3': 'https://k-web-topaz.vercel.app/games/fancypantsadventure3/index.html',
+            'flood runner 2': 'https://k-web-topaz.vercel.app/games/floodrunner2/index.html',
+            'flood runner 3': 'https://k-web-topaz.vercel.app/games/floodrunner3/index.html',
+            'dragon boy 2': 'https://k-web-topaz.vercel.app/games/dragonboy2/index.html',
+            'neon rider': 'https://k-web-topaz.vercel.app/games/neonrider/index.html',
+            'pandemic 2': 'https://k-web-topaz.vercel.app/games/pandemic2/index.html',
+            'stick war': 'https://k-web-topaz.vercel.app/games/stickwar/index.html',
+            'stick war 2': 'https://k-web-topaz.vercel.app/games/stickwar2/index.html',
+            'ultimate flash sonic': 'https://k-web-topaz.vercel.app/games/ultimateflashsonic/index.html',
+            'zombocalypse': 'https://k-web-topaz.vercel.app/games/zombocalypse/index.html',
+            'zombotron': 'https://k-web-topaz.vercel.app/games/zombotron/index.html',
+            'zombotron 2': 'https://k-web-topaz.vercel.app/games/zombotron2/index.html',
+            'backrooms 2d': 'https://k-web-topaz.vercel.app/games/backrooms2d/index.html',
+            'basket random': 'https://k-web-topaz.vercel.app/games/basketrandom/index.html',
+            'csgo clicker': 'https://k-web-topaz.vercel.app/games/csgoclicker/index.html',
+            'doom': 'https://k-web-topaz.vercel.app/games/doom/index.html',
+            'funny shooter 2': 'https://k-web-topaz.vercel.app/games/funnyshooter2/index.html',
+            'infinite craft': 'https://k-web-topaz.vercel.app/games/infinitecraft/index.html',
+            'lows adventures 2': 'https://k-web-topaz.vercel.app/games/lowsadventures2/index.html',
+            'pako highway': 'https://k-web-topaz.vercel.app/games/pakohighway/index.html',
+            'recoil': 'https://k-web-topaz.vercel.app/games/recoil/index.html',
+            'run 3 plus': 'https://k-web-topaz.vercel.app/games/run3plus/index.html',
+            'slope city': 'https://k-web-topaz.vercel.app/games/slopecity/index.html',
+            'state io': 'https://k-web-topaz.vercel.app/games/stateio/index.html',
+            'sudoku': 'https://k-web-topaz.vercel.app/games/sudoku/index.html',
+            'superhero drop': 'https://k-web-topaz.vercel.app/games/superherodrop/index.html',
+            'balloon run': 'https://k-web-topaz.vercel.app/games/balloonrun/index.html',
+            'crazy tunnel 3d': 'https://k-web-topaz.vercel.app/games/crazytunnel3d/index.html',
+            'Minecraft 1.8': 'https://k-web-topaz.vercel.app/games/eagler1.8/index.html',
+            'geometry dash sky': 'https://k-web-topaz.vercel.app/games/geometrydashsky/index.html',
+            'wubzzys amazing adventure': 'https://k-web-topaz.vercel.app/games/wubzzysamazingadventure/index.html',
+            'gold digger frvr': 'https://k-web-topaz.vercel.app/games/golddiggerfrvr/index.html',
+            'hexgl': 'https://k-web-topaz.vercel.app/games/hexgl/index.html',
+            'house of hazards': 'https://k-web-topaz.vercel.app/games/houseofhazards/index.html',
+            'pickc rafter': 'https://k-web-topaz.vercel.app/games/pickcrafter/index.html',
+            'precision client': 'https://k-web-topaz.vercel.app/games/precisionclient/index.html',
+            'subway runner': 'https://k-web-topaz.vercel.app/games/subwayrunner/index.html',
+            'xx142-b2.exe': 'https://k-web-topaz.vercel.app/games/xx142-b2.exe/index.html',
+            'canopy': 'https://k-web-topaz.vercel.app/games/canopy/index.html',
+            'cave chaos': 'https://k-web-topaz.vercel.app/games/cavechaos/index.html',
+            'change type': 'https://k-web-topaz.vercel.app/games/changetype/index.html',
+            'cheese dreams': 'https://k-web-topaz.vercel.app/games/cheesedreams/index.html',
+            'chisel': 'https://k-web-topaz.vercel.app/games/chisel/index.html',
+            'chisel 2': 'https://k-web-topaz.vercel.app/games/chisel2/index.html',
+            'ditto': 'https://k-web-topaz.vercel.app/games/ditto/index.html',
+            'feed me': 'https://k-web-topaz.vercel.app/games/feedme/index.html',
+            'final ninja': 'https://k-web-topaz.vercel.app/games/finalninja/index.html',
+            'frost bite': 'https://k-web-topaz.vercel.app/games/frostbite/index.html',
+            'frost bite 2': 'https://k-web-topaz.vercel.app/games/frostbite2/index.html',
+            'ice breaker': 'https://k-web-topaz.vercel.app/games/icebreaker/index.html',
+            'mutiny': 'https://k-web-topaz.vercel.app/games/mutiny/index.html',
+            'nitrome must die': 'https://k-web-topaz.vercel.app/games/nitromemustdie/index.html',
+            'oodle gobs': 'https://k-web-topaz.vercel.app/games/oodlegobs/index.html',
+            'super treadmill': 'https://k-web-topaz.vercel.app/games/supertreadmill/index.html',
+            'swindler': 'https://k-web-topaz.vercel.app/games/swindler/index.html',
+            'test subject arena': 'https://k-web-topaz.vercel.app/games/testsubjectarena/index.html',
+            'test subject complete': 'https://k-web-topaz.vercel.app/games/testsubjectcomplete/index.html',
+            'twin shot': 'https://k-web-topaz.vercel.app/games/twinshot/index.html',
+            'twin shot 2': 'https://k-web-topaz.vercel.app/games/twinshot2/index.html',
+            '3 line': 'https://k-web-topaz.vercel.app/games/3line/index.html',
+            'bike champ': 'https://k-web-topaz.vercel.app/games/bikechamp/index.html',
+            'bike champ 2': 'https://k-web-topaz.vercel.app/games/bikechamp2/index.html',
+            'corporation inc': 'https://k-web-topaz.vercel.app/games/corporationinc/index.html',
+            'shop empire fable': 'https://k-web-topaz.vercel.app/games/shopempirefable/index.html',
+            'cactus mccoy': 'https://k-web-topaz.vercel.app/games/cactusmccoy/index.html',
+            'cactus mccoy 2': 'https://k-web-topaz.vercel.app/games/cactusmccoy2/index.html',
+            'papa louie': 'https://k-web-topaz.vercel.app/games/papalouie/index.html',
+            'papa louie 2': 'https://k-web-topaz.vercel.app/games/papalouie2/index.html',
+            'papa louie 3': 'https://k-web-topaz.vercel.app/games/papalouie3/index.html',
+            'steak and jake': 'https://k-web-topaz.vercel.app/games/steakandjake/index.html',
+            'steak and jake midnight march': 'https://k-web-topaz.vercel.app/games/steakandjakemidnightmarch/index.html',
+            'goldeneye 007': 'https://k-web-topaz.vercel.app/games/goldeneye007/',
+            'craftmine': 'https://3kh0-lite-rose.vercel.app/projects/craftmine/index.html'
+        };
+
+        const unblockButton = document.getElementById('unblock-button');
+
+        // Initialize proxy/unblock behavior for Interstellar button based on access level
+         (function(){
+             // Ensure Interstellar acts as proxy only when unlocked with full PIN
+             const interstellarBtn = document.getElementById('interstellar-button');
+             if (!interstellarBtn) return;
+             // Ensure click handler exists once
+             if (!interstellarBtn.hasListenerAttached) {
+                 interstellarBtn.addEventListener('click', () => {
+                     const access = localStorage.getItem('qnb_unlocked_v1');
+                     if (access === 'full') {
+                         // act as proxy: open stealth in about:blank
+                         openInAboutBlankStealth('https://interstellar-pus6.vercel.app');
+                     } else {
+                         // default: open in overlay
+                         openGameOverlay('https://interstellar-pus6.vercel.app');
+                     }
+                 });
+                 interstellarBtn.hasListenerAttached = true;
+             }
+         })();
+
+        // Remove previous explicit unblockButton wiring (we'll no longer use unblock-button directly)
+        // initialize visibility once at startup
+        window.updateProxyVisibility();
+
+        const gameCounter = document.getElementById('game-counter');
+        const numGames = Object.keys(gameData).length;
+        gameCounter.textContent = `${numGames} games available`;
+
+        const character = document.getElementById('character');
+
+        // simple home button behavior: go to root when clicked
+        character.addEventListener('click', () => { window.location.href = '/'; });
+
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+        let homeRect = null;
+        let placeholder = null;
+
+        // For velocity calculation
+        let lastPos = { x: 0, y: 0 };
+        let lastTime = 0;
+        let velocity = { x: 0, y: 0 };
+
+        character.addEventListener('mousedown', (e) => {
+            if (character.classList.contains('returning')) return;
+            
+            e.preventDefault();
+            
+            isDragging = true;
+            
+            homeRect = character.getBoundingClientRect();
+
+            // Create and insert a placeholder to maintain layout
+            placeholder = document.createElement('div');
+            placeholder.style.width = `${homeRect.width}px`;
+            placeholder.style.height = `${homeRect.height}px`;
+            placeholder.style.flexShrink = '0'; // Prevent placeholder from shrinking
+            character.parentElement.insertBefore(placeholder, character);
+
+            offset.x = e.clientX - homeRect.left;
+            offset.y = e.clientY - homeRect.top;
+            
+            character.style.position = 'fixed';
+            character.style.left = `${homeRect.left}px`;
+            character.style.top = `${homeRect.top}px`;
+            
+            lastPos = { x: e.clientX, y: e.clientY };
+            lastTime = performance.now();
+
+            // Allow a moment for the position change to apply before adding the class
+            requestAnimationFrame(() => {
+                character.style.setProperty('--character-scale', '1.1');
+                character.classList.add('dragging');
+            });
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        function onMouseMove(e) {
+            if (!isDragging) return;
+
+            const now = performance.now();
+            const dt = now - lastTime;
+            let speed = 0;
+
+            if (dt > 0) {
+                const dx = e.clientX - lastPos.x;
+                const dy = e.clientY - lastPos.y;
+                velocity.x = dx / dt;
+                velocity.y = dy / dt;
+                speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+            }
+
+            lastPos = { x: e.clientX, y: e.clientY };
+            lastTime = now;
+
+            const newX = e.clientX - offset.x;
+            const newY = e.clientY - offset.y;
+            
+            character.style.left = `${newX}px`;
+            character.style.top = `${newY}px`;
+
+            const speedThreshold = 1.0; // pixels/ms
+            const scaleLift = 1.1;
+
+            if (speed > speedThreshold) {
+                character.style.animation = 'none'; // Stop shaking to apply stretch
+
+                let angle = Math.atan2(velocity.y, velocity.x);
+                // Prevent character from going upside down when moving left.
+                if (velocity.x < 0) {
+                    angle = Math.atan2(velocity.y, -velocity.x);
+                }
+                const maxStretch = 3;
+                const stretchiness = 0.2;
+                const stretch = Math.min(1 + (speed - speedThreshold) * stretchiness, maxStretch);
+                const squash = 1 / stretch;
+                
+                character.style.transform = `rotate(${angle}rad) scale(${stretch * scaleLift}, ${squash * scaleLift})`;
+            } else {
+                character.style.animation = ''; // Re-enable CSS animation
+                character.style.transform = ''; // Let animation handle transform
+            }
+        }
+
+        function onMouseUp() {
+            if (!isDragging) return;
+
+            isDragging = false;
+            character.classList.remove('dragging');
+            character.style.removeProperty('--character-scale');
+
+            // Reset any inline styles from dragging
+            character.style.animation = '';
+            character.style.transform = '';
+
+            const cleanup = () => {
+                character.removeEventListener('transitionend', cleanup);
+                character.classList.remove('returning');
+                
+                // Reset styles to return to flexbox layout
+                character.style.position = 'relative';
+                character.style.left = '';
+                character.style.top = '';
+
+                // Remove the placeholder
+                if (placeholder) {
+                    placeholder.remove();
+                    placeholder = null;
+                }
+            };
+            
+            const currentRect = character.getBoundingClientRect();
+
+            // If the character hasn't moved, a transition won't fire.
+            // In that case, clean up immediately.
+            if (Math.round(currentRect.left) === Math.round(homeRect.left) && Math.round(currentRect.top) === Math.round(homeRect.top)) {
+                cleanup();
+            } else {
+                // Otherwise, transition back to place and clean up when it's done.
+                character.classList.add('returning');
+                character.style.left = `${homeRect.left}px`;
+                character.style.top = `${homeRect.top}px`;
+                character.addEventListener('transitionend', cleanup, { once: true });
+            }
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+
+        const searchBar = document.getElementById('search-bar');
+        const searchResults = document.getElementById('search-results');
+        const gameNames = Object.keys(gameData);
+        const searchBarResultsWrapper = document.getElementById('search-bar-results-wrapper');
+
+        searchBar.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            searchResults.innerHTML = '';
+
+            if (query.length > 0) {
+                const filteredGames = gameNames.filter(game => game.toLowerCase().includes(query));
+                
+                if (filteredGames.length > 0) {
+                    filteredGames.slice(0, 6).forEach(game => {
+                        const link = document.createElement('a');
+                        link.href = gameData[game];
+                        link.textContent = game;
+                        searchResults.appendChild(link);
+                    });
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.style.display = 'none';
+                }
+            } else {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        searchBar.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent form submission if it's in a form
+                const firstResult = searchResults.querySelector('a');
+                if (firstResult) {
+                    openGameOverlay(firstResult.href);
+                    searchResults.style.display = 'none';
+                    searchBar.blur();
+                }
+            }
+        });
+
+        searchResults.addEventListener('click', (e) => {
+            if (e.target.tagName === 'A') {
+                e.preventDefault();
+                openGameOverlay(e.target.href);
+                searchResults.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (searchBarResultsWrapper && !searchBarResultsWrapper.contains(e.target) && !e.target.closest('#search-bar-results-wrapper')) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        // Live TV Button
+        const liveTvButton = document.getElementById('live-tv-button');
+        liveTvButton.addEventListener('click', () => {
+            openGameOverlay('https://free-stream-five.vercel.app');
+        });
+
+        // Oddish AI Button removed
+
+        // Interstellar Button
+        const interstellarButton = document.getElementById('interstellar-button');
+        // Ensure only attach listener if the toolbar button exists (prevents null addEventListener errors)
+        if (interstellarButton) {
+            interstellarButton.addEventListener('click', () => {
+                const access = localStorage.getItem('qnb_unlocked_v1');
+                if (access === 'full') {
+                    openInAboutBlankStealth('https://interstellar-pus6.vercel.app');
+                } else {
+                    openGameOverlay('https://interstellar-pus6.vercel.app');
+                }
+            });
+        }
+
+        // Placeholder for settings button click (no functionality specified yet)
+        const settingsButton = document.getElementById('settings-button');
+        if (settingsButton) {
+            const settingsSidebar = document.getElementById('settings-sidebar');
+            const closeSettingsBtn = document.getElementById('close-settings-btn');
+            const settingsResizeHandle = document.getElementById('settings-resize-handle');
+            settingsButton.addEventListener('click', () => { settingsSidebar.style.right = ''; settingsSidebar.classList.add('open'); });
+            closeSettingsBtn.addEventListener('click', () => { const w = settingsSidebar.offsetWidth; settingsSidebar.style.right = `-${w}px`; settingsSidebar.classList.remove('open'); });
+            document.addEventListener('click', (e) => { if (settingsSidebar.classList.contains('open') && !settingsSidebar.contains(e.target) && !settingsButton.contains(e.target)) { const w = settingsSidebar.offsetWidth; settingsSidebar.style.right = `-${w}px`; settingsSidebar.classList.remove('open'); } });
+            settingsResizeHandle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const startX = e.clientX, startW = settingsSidebar.offsetWidth;
+                const doDrag = (ev) => { settingsSidebar.style.width = `${startW - (ev.clientX - startX)}px`; };
+                const stopDrag = () => { document.removeEventListener('mousemove', doDrag); document.removeEventListener('mouseup', stopDrag); if (!settingsSidebar.classList.contains('open')) settingsSidebar.style.right = `-${settingsSidebar.offsetWidth}px`; };
+                document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', stopDrag);
+            });
+        }
+
+        const newsButton = document.getElementById('news-button');
+        const newsSidebar = document.getElementById('news-sidebar');
+        const closeNewsBtn = document.getElementById('close-news-btn');
+        const resizeHandle = document.getElementById('news-resize-handle');
+
+        newsButton.addEventListener('click', () => {
+            newsSidebar.style.right = '';
+            newsSidebar.classList.add('open');
+            
+            // Lazy-load the news iframe only when opened
+            const newsIframe = newsSidebar.querySelector('iframe');
+            if (newsIframe && newsIframe.src === 'about:blank') {
+                newsIframe.src = 'https://rss.app/embed/v1/list/tpkxDflrmDsdb3PO';
+            }
+        });
+
+        const closeSidebar = () => {
+            const sidebarWidth = newsSidebar.offsetWidth;
+            newsSidebar.style.right = `-${sidebarWidth}px`;
+            newsSidebar.classList.remove('open');
+            
+            // Stop the news iframe when sidebar is closed
+            const newsIframe = newsSidebar.querySelector('iframe');
+            if (newsIframe) {
+                newsIframe.src = 'about:blank';
+            }
+        };
+
+        closeNewsBtn.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking outside
+        document.addEventListener('click', (e) => {
+            if (newsSidebar.classList.contains('open') &&
+                !newsSidebar.contains(e.target) &&
+                !newsButton.contains(e.target)) { 
+                closeSidebar();
+            }
+        });
+
+        // Sidebar resize logic
+        resizeHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent text selection
+            const startX = e.clientX;
+            const startWidth = newsSidebar.offsetWidth;
+
+            const doDrag = (e) => {
+                const newWidth = startWidth - (e.clientX - startX);
+                newsSidebar.style.width = `${newWidth}px`;
+            };
+
+            const stopDrag = () => {
+                document.removeEventListener('mousemove', doDrag);
+                document.removeEventListener('mouseup', stopDrag);
+                // When sidebar is closed, its 'right' position depends on its width.
+                // If it's closed while resizing, we update its position.
+                if (!newsSidebar.classList.contains('open')) {
+                   newsSidebar.style.right = `-${newsSidebar.offsetWidth}px`;
+                }
+            };
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+        });
+
+        // Minimal audio globals to avoid ReferenceError when opening games
+        let isMusicPlaying = false;
+        let audioContext = null;
+        let gainNode = null;
+
+        // Game Overlay Logic
+        const gameOverlay = document.getElementById('game-overlay');
+        const gameIframe = document.getElementById('game-iframe');
+        const closeGameBtn = document.getElementById('close-game-btn');
+        const refreshGameBtn = document.getElementById('refresh-game-btn');
+
+        let wasPlayingBeforeGame = false;
+
+        function openGameOverlay(url) {
+            gameIframe.src = url;
+            gameOverlay.classList.add('visible');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling of the background page
+
+            if (isMusicPlaying && gainNode) {
+                wasPlayingBeforeGame = true;
+                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+                setTimeout(() => {
+                    if (gameOverlay.classList.contains('visible') && audioContext.state === 'running') {
+                        audioContext.suspend();
+                    }
+                }, 500);
+            } else {
+                wasPlayingBeforeGame = false;
+            }
+        }
+
+        function closeGameOverlay() {
+            gameOverlay.classList.remove('visible');
+            gameIframe.src = 'about:blank'; // Stop game and free up resources
+            document.body.style.overflow = '';
+
+            if (wasPlayingBeforeGame && audioContext && gainNode) {
+                if (isMusicPlaying && audioContext.state === 'suspended') {
+                     audioContext.resume().then(() => {
+                        gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.5);
+                    });
+                }
+                wasPlayingBeforeGame = false;
+            }
+        }
+
+        function refreshGame() {
+            // Reload the iframe content
+            gameIframe.src = gameIframe.src;
+        }
+
+        closeGameBtn.addEventListener('click', closeGameOverlay);
+        refreshGameBtn.addEventListener('click', refreshGame);
+        
+        const openNewTabBtn = document.getElementById('open-new-tab-btn');
+
+        // Make the in-overlay "Open in new tab" do the exact same stealth popup flow
+        openNewTabBtn.addEventListener('click', () => {
+            const gameSrc = gameIframe.src;
+            if (gameSrc && gameSrc !== 'about:blank') {
+                openInAboutBlankStealth(gameSrc);
+            }
+        });
+
+        gameOverlay.addEventListener('click', (e) => {
+            // Close only if the click is on the background overlay itself
+            if (e.target === gameOverlay) {
+                closeGameOverlay();
+            }
+        });
+
+        // Image Modal Logic
+        const imageModal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        const closeImageModalBtn = document.getElementById('close-image-modal-btn');
+        const creditImages = document.querySelectorAll('.credit-image');
+
+        function openImageModal(imageSrc) {
+            modalImage.src = imageSrc;
+            imageModal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            imageModal.classList.remove('visible');
+            document.body.style.overflow = '';
+            modalImage.src = '';
+        }
+
+        creditImages.forEach(image => {
+            image.addEventListener('click', () => {
+                openImageModal(image.src);
+            });
+        });
+
+        // Dynamic tilt effect based on mouse position
+        const imageModalContent = document.getElementById('image-modal-content');
+        
+        imageModalContent.addEventListener('mousemove', (e) => {
+            const rect = imageModalContent.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Calculate rotation based on mouse position relative to center
+            const rotateY = (e.clientX - centerX) / rect.width * 30; // Max 30deg rotation
+            const rotateX = -(e.clientY - centerY) / rect.height * 30; // Max 30deg rotation (inverted)
+            
+            imageModalContent.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+        });
+        
+        imageModalContent.addEventListener('mouseleave', () => {
+            imageModalContent.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+        });
+
+        closeImageModalBtn.addEventListener('click', closeImageModal);
+        
+        // Prevent the image modal close button from closing the credits sidebar
+        closeImageModalBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                closeImageModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && imageModal.classList.contains('visible')) {
+                closeImageModal();
+            }
+        });
+    </script>
+</body>
+</html>
