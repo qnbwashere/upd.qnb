@@ -3179,19 +3179,18 @@
         
         const openNewTabBtn = document.getElementById('open-new-tab-btn');
 
-        // Replace "open new tab" behavior with opening the Credits sidebar
-        openNewTabBtn.addEventListener('click', () => {
-            const creditsSidebar = document.getElementById('credits-sidebar');
-            if (!creditsSidebar) return;
-            creditsSidebar.style.right = '';
-            creditsSidebar.classList.add('open');
-            // Populate credits content (non-persistent)
-            const creditsContent = document.getElementById('credits-content');
-            if (creditsContent) {
-                creditsContent.innerHTML = '<h3 style="margin-top:0;">Made by QNB</h3><p>Logo designed by QNB</p><p>All the rest of that — thanks to everyone involved.</p>';
-            }
-            document.body.style.overflow = 'hidden';
-        });
+        // Fullscreen toggle for the game container (was incorrectly opening Credits)
+        if (openNewTabBtn) {
+            openNewTabBtn.addEventListener('click', () => {
+                const container = document.getElementById('game-container');
+                if (!container) return;
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen?.().catch(()=>{ /* ignore */ });
+                } else {
+                    document.exitFullscreen?.().catch(()=>{ /* ignore */ });
+                }
+            });
+        }
 
         gameOverlay.addEventListener('click', (e) => {
             // Close only if the click is on the background overlay itself
