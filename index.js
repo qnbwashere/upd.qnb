@@ -92,7 +92,7 @@ filteredGames.slice(0, 6).forEach(game => {
             const proxiesBtn = document.getElementById('proxies-button');
             if (proxiesBtn && !proxiesBtn.hasListenerAttached) {
                 proxiesBtn.addEventListener('click', () => {
-                    openGameOverlay('/proxies.html');
+                    openGameOverlay('./proxies.html');
                 });
                 proxiesBtn.hasListenerAttached = true;
             }
