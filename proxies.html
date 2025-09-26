@@ -126,6 +126,7 @@
         if (!href) return;
         e.preventDefault();
         if (window.parent && window.parent !== window) {
+          // Post to parent so the link opens inside the repo-relative overlay (parent handles same-origin or external)
           window.parent.postMessage({ type: 'openOverlay', url: href }, '*');
         } else {
           window.location.href = href;
