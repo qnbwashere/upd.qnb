@@ -1380,7 +1380,7 @@
     <canvas id="audio-visualizer"></canvas>
     <canvas id="snow-canvas"></canvas>
     <video autoplay muted loop id="bg-video">
-        <source src="/mp4-1280 (1).mp4" type="video/mp4">
+        <source src="mp4-1280 (85).mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
     <div id="dark-mode-overlay"></div>
@@ -1530,7 +1530,147 @@
         </div>
     </div>
 
-    <script type="module" src="/index.js"></script>
+    <!-- Insert proxies template (embedded copy of proxies.html) -->
+    <template id="proxies-template">
+      <!doctype html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Admin Proxies</title>
+        <style>
+          :root{--accent:#4b3bd6;--bg:#0b0b0b;--text:#e8e8e8}
+          body{margin:0;background:#070707;color:var(--text);font-family:Inter,-apple-system,Segoe UI,Roboto,Arial;line-height:1.45;padding:20px}
+          header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+          h1{margin:0;font-size:18px;color:var(--accent)}
+          .section{margin-bottom:18px;border-left:4px solid rgba(75,59,214,0.14);padding:10px 14px;background:rgba(255,255,255,0.02);border-radius:8px}
+          .section h2{margin:0 0 8px 0;font-size:13px;color:var(--accent)}
+          .links{display:flex;flex-direction:column;gap:6px}
+          .links a{color:var(--text);text-decoration:none;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.01);font-size:13px;word-break:break-all}
+          .links a:hover{background:rgba(255,255,255,0.03);outline:1px solid rgba(255,255,255,0.02)}
+          .note{font-size:12px;color:#9aa0a6;margin-top:8px}
+          footer{margin-top:18px;font-size:12px;color:#8b8f95}
+        </style>
+      </head>
+      <body>
+        <header>
+          <h1>Admin Proxies</h1>
+          <div class="note">Accessible after admin unlock. Links open in the overlay or in a new tab.</div>
+        </header>
+
+        <main>
+          <div class="section">
+            <h2>Ghost Proxies (sample)</h2>
+            <div class="links">
+              <a href="https://nirbytesghost.clienturl.net/">https://nirbytesghost.clienturl.net/</a>
+              <a href="https://nirbytghostpro.govt.hu/">https://nirbytghostpro.govt.hu/</a>
+              <a href="https://ghostxpen.moonangel.com/">https://ghostxpen.moonangel.com/</a>
+              <a href="https://feedonblood.bolboroace.ro/">https://feedonblood.bolboroace.ro/</a>
+              <a href="https://earthmowers.gabrielamelopropiedades.cl/">https://earthmowers.gabrielamelopropiedades.cl/</a>
+              <a href="https://sentries.kategentry.com/">https://sentries.kategentry.com/</a>
+              <a href="https://swordmachines.laxmikarmacharya.com.np/">https://swordmachines.laxmikarmacharya.com.np/</a>
+              <a href="https://guttermans.manggalaperkasa.com/">https://guttermans.manggalaperkasa.com/</a>
+              <a href="https://hopedies.skyhop.us/">https://hopedies.skyhop.us/</a>
+              <a href="https://godhasleft.momgod.com/">https://godhasleft.momgod.com/</a>
+              <a href="https://humankindisafailure.kindy4kids.com.au/">https://humankindisafailure.kindy4kids.com.au/</a>
+              <a href="https://freewillisaflaw.ddnsfree.top/">https://freewillisaflaw.ddnsfree.top/</a>
+              <a href="https://hellbreaksloose.barryscloset.com/">https://hellbreaksloose.barryscloset.com/</a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Rammerhead Proxies</h2>
+            <div class="links">
+              <a href="https://oh.zjhmz.cn/">https://oh.zjhmz.cn/</a>
+              <a href="https://drive.google.com.laoxz.cn/">https://drive.google.com.laoxz.cn/</a>
+              <a href="https://boi.ax1951.com/">https://boi.ax1951.com/</a>
+              <a href="https://dreamofbonky.alptechflow.com/">https://dreamofbonky.alptechflow.com/</a>
+              <a href="https://notsuchagoodideabro.quality-electronics.com/">https://notsuchagoodideabro.quality-electronics.com/</a>
+              <a href="https://kingofthepirates.cryodome.com/">https://kingofthepirates.cryodome.com/</a>
+              <a href="https://rc-1207.conyser.cl/">https://rc-1207.conyser.cl/</a>
+              <a href="https://calitech.pits.cl/">https://calitech.pits.cl/</a>
+              <a href="https://gym.clas.swork.networkindia.com/">https://gym.clas.swork.networkindia.com/</a>
+              <a href="https://drive.google.com.mikata.ru/">https://drive.google.com.mikata.ru/</a>
+              <a href="https://sixseven41.servernux.com/">https://sixseven41.servernux.com/</a>
+              <a href="https://chicken2.404.mn/">https://chicken2.404.mn/</a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Shadow Proxies</h2>
+            <div class="links">
+              <a href="https://fooddrive.stormfood.com">https://fooddrive.stormfood.com</a>
+              <a href="https://solidreading.gkihalimun.org/">https://solidreading.gkihalimun.org/</a>
+              <a href="https://easybio.bridgeslab.net/">https://easybio.bridgeslab.net/</a>
+              <a href="https://rapidcalc.rpvf.com/">https://rapidcalc.rpvf.com/</a>
+              <a href="https://novahistory.ibernoticias.com/">https://novahistory.ibernoticias.com/</a>
+              <a href="https://procoding.dragrecords.com.au/">https://procoding.dragrecords.com.au/</a>
+              <a href="https://virtualalgebra.siniritarit.fi/">https://virtualalgebra.siniritarit.fi/</a>
+              <a href="https://topliterature.sunrise.org.uk/">https://topliterature.sunrise.org.uk/</a>
+              <a href="https://quickphysics.a-quo.com/">https://quickphysics.a-quo.com/</a>
+              <a href="https://keencalc.ivc.org.ar/">https://keencalc.ivc.org.ar/</a>
+              <a href="https://alphaphysics.johnwarburton.net/">https://alphaphysics.johnwarburton.net/</a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Utopia Proxies</h2>
+            <div class="links">
+              <a href="https://math.bio.dalbosco.net/">https://math.bio.dalbosco.net/</a>
+              <a href="https://recap.grade.kredytlinia.pl/">https://recap.grade.kredytlinia.pl/</a>
+              <a href="https://graph.words.savatech.ch/">https://graph.words.savatech.ch/</a>
+              <a href="https://piano.math.baikabibai.com/">https://piano.math.baikabibai.com/</a>
+              <a href="https://sage.course.spacetechnology.net/">https://sage.course.spacetechnology.net/</a>
+              <a href="https://excel.proof.cot.lt/">https://excel.proof.cot.lt/</a>
+              <a href="https://learn.science.freak.nard.ca/">https://learn.science.freak.nard.ca/</a>
+              <a href="https://josephsutopiaaa.benjaminbartlett.net/">https://josephsutopiaaa.benjaminbartlett.net/</a>
+              <a href="https://josephsutopia.novff.ru/">https://josephsutopia.novff.ru/</a>
+              <a href="https://skibidilibidimibidi.mooo.com/">https://skibidilibidimibidi.mooo.com/</a>
+              <a href="https://google.com.teachinghospital.org.np/">https://google.com.teachinghospital.org.np/</a>
+              <a href="https://donotblockthisschool.crabdance.com/">https://donotblockthisschool.crabdance.com/</a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>DayDream X / SPACE / DOGE / BOLT / Freedom / Misc (sample)</h2>
+            <div class="links">
+              <a href="https://chromebookuserxdixo.synoserver.com">https://chromebookuserxdixo.synoserver.com</a>
+              <a href="https://embranxeo.host2go.net">https://embranxeo.host2go.net</a>
+              <a href="https://nirbytes_dogeproxy.fpr.net">https://nirbytes_dogeproxy.fpr.net</a>
+              <a href="https://bootnbo.baselinux.net">https://bootnbo.baselinux.net</a>
+              <a href="https://weather.meteorological.co/">https://weather.meteorological.co/</a>
+              <a href="https://info.metropolitanstaffingsolutions.com/">https://info.metropolitanstaffingsolutions.com/</a>
+              <a href="https://interstellar-pus6.vercel.app">https://interstellar-pus6.vercel.app</a>
+              <a href="https://free-stream-five.vercel.app">https://free-stream-five.vercel.app</a>
+            </div>
+            <div class="note">This page contains many categorized links; open them in a new tab or use the overlay close to return to the site.</div>
+          </div>
+        </main>
+
+        <footer>
+          <div>Admin Proxies — use responsibly.</div>
+        </footer>
+
+        <script>
+          // When embedded via srcdoc, links should ask parent to open in overlay; if running standalone, behave normally.
+          document.addEventListener('click', function(e){
+            const a = e.target.closest('a');
+            if (!a) return;
+            const href = a.href;
+            if (!href) return;
+            e.preventDefault();
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: 'openOverlay', url: href }, '*');
+            } else {
+              window.location.href = href;
+            }
+          }, true);
+        </script>
+      </body>
+      </html>
+    </template>
+
+    <script type="module" src="./index.js"></script>
 
     <script>
         // Banner dismiss handling (non-persistent: dismiss for this session only)
@@ -2274,15 +2414,15 @@
             // Populate assets panel with known files (so you can download them)
             (function populateAssetsPanel(){
                 const assets = [
-                    '/bg_1.png','/bg_2.png','/bg_3.png','/bg_4.png','/bg_5.png','/bg_6.png','/bg_7.png','/bg_8.png','/bg_9.png','/bg_10.png','/bg_11.png','/bg_12.png','/bg_13.png',
-                    '/dark_mode_icon.png','/light_mode_icon.png','/refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png','/pop-up_button.png','/pop-up_button_2.png',
-                    '/settings.png','/News.png','/Live_TV.png','/close_button.png','/favicon.ico',
-                    '/Oddish.png','/Oddish_AI.png','/Oddish_profile','/Oddish_AI.png','/Oddish_AI.png',
-                    '/mp4-1280 (39).mp4','/mp4-1280 (40).mp4','/mp4-1280 (41).mp4','/mp4-1280 (42).mp4','/mp4-1280 (43).mp4','/mp4-1280 (44).mp4','/mp4-1280 (45).mp4','/mp4-1280 (46).mp4','/mp4-1280 (47).mp4','/mp4-1280 (48).mp4','/mp4-1280 (49).mp4','/mp4-1280 (50).mp4',
-                    '/SpotiDownloader.com - Beach Buds (Short Hike) - Mark Sparling.mp3','/SpotiDownloader.com - Ember Valley (Relaxed) - Harry Mack.mp3','/New_Age_Whale__Chill__Jul_4_2025_806_AM (1).mp3','/Chill_Rabbit__Chill__Jul_7_2025_1108_AM.mp3','/LoFi_Hippo__Moody__Jul_7_2025_1000_AM.mp3','/New_Age_Whale__Bright__Jul_7_2025_1201_PM.mp3','/New_Age_Whale__Chill__Jul_6_2025_945_AM.mp3',
-                    '/Cover of Ember Valley (Relaxed) by Harry Mack.mp3','/Cover of Beach Buds (Short Hike) by Mark Sparling.jpg','/Cover of Everything\'s Gonna Be Okay - Calum Bowen.jpg',
-                    '/INTERSTELLAR_Icon.png','/Kermit.png','/Oddish_AI.png','/Oddish.png','/cat_stardew_valley.jpg',
-                    '/loop_button.png','/loop_button_active.png','/previous_skip.png','/skip_next.png','/refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png'
+                    'bg_1.png','bg_2.png','bg_3.png','bg_4.png','bg_5.png','bg_6.png','bg_7.png','bg_8.png','bg_9.png','bg_10.png','bg_11.png','bg_12.png','bg_13.png',
+                    'dark_mode_icon.png','light_mode_icon.png','refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png','pop-up_button.png','pop-up_button_2.png',
+                    'settings.png','News.png','Live_TV.png','close_button.png','favicon.ico',
+                    'Oddish.png','Oddish_AI.png','Oddish_profile','Oddish_AI.png','Oddish_AI.png',
+                    'mp4-1280 (39).mp4','mp4-1280 (40).mp4','mp4-1280 (41).mp4','mp4-1280 (42).mp4','mp4-1280 (43).mp4','mp4-1280 (44).mp4','mp4-1280 (45).mp4','mp4-1280 (46).mp4','mp4-1280 (47).mp4','mp4-1280 (48).mp4','mp4-1280 (49).mp4','mp4-1280 (50).mp4',
+                    'SpotiDownloader.com - Beach Buds (Short Hike) - Mark Sparling.mp3','SpotiDownloader.com - Ember Valley (Relaxed) - Harry Mack.mp3','New_Age_Whale__Chill__Jul_4_2025_806_AM (1).mp3','Chill_Rabbit__Chill__Jul_7_2025_1108_AM.mp3','LoFi_Hippo__Moody__Jul_7_2025_1000_AM.mp3','New_Age_Whale__Bright__Jul_7_2025_1201_PM.mp3','New_Age_Whale__Chill__Jul_6_2025_945_AM.mp3',
+                    'Cover of Ember Valley (Relaxed) by Harry Mack.mp3','Cover of Beach Buds (Short Hike) by Mark Sparling.jpg','Cover of Everything\'s Gonna Be Okay - Calum Bowen.jpg',
+                    'INTERSTELLAR_Icon.png','Kermit.png','Oddish_AI.png','Oddish.png','cat_stardew_valley.jpg',
+                    'loop_button.png','loop_button_active.png','previous_skip.png','skip_next.png','refresh_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png'
                 ];
                 const list = document.getElementById('assets-list');
                 list.innerHTML = '';
@@ -3264,6 +3404,18 @@
                 closeImageModal();
             }
         });
+
+        // Handle proxy button click to open the embedded proxies.html
+        const proxiesButton = document.getElementById('proxies-button');
+        if (proxiesButton) {
+            proxiesButton.addEventListener('click', () => {
+                // Load the standalone proxies page (relative path) into the overlay iframe so its click handlers
+                // can postMessage to the parent reliably.
+                gameIframe.src = './proxies.html';
+                gameOverlay.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+            });
+        }
     </script>
 </body>
 </html>
