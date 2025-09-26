@@ -75,4 +75,26 @@ filteredGames.slice(0, 6).forEach(game => {
         refreshGameBtn.addEventListener('click', refreshGame);
         
         const openNewTabBtn = document.getElementById('open-new-tab-btn');
+        
+        // Update proxy/unblock behavior for Interstellar button based on access level (callable globally)
+        window.updateProxyVisibility = function() {
+            try {
+                const metBtn = document.getElementById('met-button');
+                const proxiesBtn = document.getElementById('proxies-button');
+                const adminUnlocked = sessionStorage.getItem('qnb_admin_unlocked') === '1';
+                if (metBtn) metBtn.style.display = adminUnlocked ? 'flex' : 'none';
+                if (proxiesBtn) proxiesBtn.style.display = adminUnlocked ? 'flex' : 'none';
+            } catch (e) { console.warn('updateProxyVisibility failed', e); }
+        };
+        
+        (function(){
+            // Interstellar and MET toolbar buttons removed; proxies are accessible from /proxies.html (opened by the Proxies button).
+            const proxiesBtn = document.getElementById('proxies-button');
+            if (proxiesBtn && !proxiesBtn.hasListenerAttached) {
+                proxiesBtn.addEventListener('click', () => {
+                    openGameOverlay('/proxies.html');
+                });
+                proxiesBtn.hasListenerAttached = true;
+            }
+        })();
 /* ...existing code... */
