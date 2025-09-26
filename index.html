@@ -1029,9 +1029,34 @@
             }
         }
 
+        #live-tv-button {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 12px;
+            min-width: 64px;
+            height: 50px;
+            border-radius: 12px;
+            background-color: rgba(0,0,0,0.6);
+            border: 3px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        #live-tv-button .btn-label {
+            font-family: 'PixelOperator-Bold', sans-serif;
+            color: var(--primary-color);
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            user-select: none;
+        }
+
         #live-tv-button:hover {
-            transform: scale(1.2);
-            box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+            box-shadow: 0 0 24px rgba(255,255,255,0.18);
         }
         
         #live-tv-button:hover img {
@@ -1314,32 +1339,6 @@
         #assets-panel .small { font-size: 0.85rem; color: var(--accent-grey); margin-bottom: 8px; }
     </style>
     <style>
-        #live-tv-button {
-            font-family: 'Press Start 2P', monospace;
-            color: var(--primary-color);
-            background: rgba(0,0,0,0.55);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 6px 8px;
-            gap: 6px;
-            box-sizing: border-box;
-        }
-        #live-tv-button .btn-label {
-            font-size: 8px; /* even smaller */
-             line-height: 1;
-             text-transform: none;
-             color: var(--primary-color);
-             -webkit-font-smoothing: antialiased;
-             white-space: normal;       /* allow wrapping */
-             text-align: center;       /* center text */
-             display: block;           /* ensure centering within the flex button */
-             padding: 0;
-             margin: 0;
-             max-width: 100%;
-         }
-    </style>
-    <style>
         /* Header logo to replace title + home button */
         #header-logo {
             height: 64px;
@@ -1386,7 +1385,7 @@
     </video>
     <div id="dark-mode-overlay"></div>
     <div class="top-bar">
-        <img id="header-logo" src="qnblogo.png.png" alt="QNB" style="height:64px;object-fit:contain;">
+        <img id="header-logo" src="qnblogo.png" alt="QNB" style="height:64px;object-fit:contain;">
     </div>
 
     <div id="client-visitor-counter">
@@ -1408,12 +1407,15 @@
         </div>
         
         <div style="display: flex; gap: 15px; margin-top: 15px; justify-content: center;">
-            <button id="live-tv-button" title="Live TV" style="background: none; border: 3px solid var(--primary-color); border-radius: 15px; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background-color: rgba(0, 0, 0, 0.6); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);">
-                <span class="btn-label">Live<br>tv</span>
+            <button id="live-tv-button" title="Live TV" style="background: none; border: 3px solid var(--primary-color); border-radius: 12px; padding: 8px 12px; min-width: 64px; height: 50px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background-color: rgba(0, 0, 0, 0.6); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);">
+                <span class="btn-label" style="font-size:11px; color:var(--primary-color); line-height:1; text-align:center;">Live TV</span>
             </button>
             
-            <button id="interstellar-button" title="Interstellar (proxy)" style="background: none; border: 3px solid var(--primary-color); border-radius: 15px; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s ease; background-color: rgba(0,0,0,0.6); box-shadow: 0 0 15px rgba(255,255,255,0.12);">
-                <img src="/INTERSTELLAR_Icon.png" alt="Interstellar" style="width: 24px; height: 24px; filter: brightness(0) invert(1);">
+            <!-- interstellar-button removed -->
+            
+            <!-- New admin-only Proxies button (hidden until admin PIN unlock) -->
+            <button id="proxies-button" title="Proxies (admin)" style="display:none; background: none; border: 3px solid var(--primary-color); border-radius: 15px; width: 50px; height: 50px; align-items:center; justify-content:center; cursor:pointer; transition: all 0.3s ease; background-color: rgba(0,0,0,0.6); box-shadow: 0 0 12px rgba(255,255,255,0.08);">
+                <span style="font-size:10px; color:var(--primary-color); text-align:center; line-height:1;">PROX</span>
             </button>
             
             <!-- Oddish AI button removed -->
@@ -2258,6 +2260,17 @@
             //     }
             // });
 
+            // Listen for overlay-open requests from embedded pages (e.g. proxies.html)
+            window.addEventListener('message', (ev) => {
+                try {
+                    const msg = ev.data;
+                    if (!msg || msg.type !== 'openOverlay' || !msg.url) return;
+                    // Only accept same-origin or trusted origins if needed; currently allow from same-origin iframes
+                    // Open the requested URL in the in-page overlay
+                    openGameOverlay(msg.url);
+                } catch (e) { console.warn('message handler failed', e); }
+            }, false);
+
             // Populate assets panel with known files (so you can download them)
             (function populateAssetsPanel(){
                 const assets = [
@@ -2737,26 +2750,7 @@
 
         const unblockButton = document.getElementById('unblock-button');
 
-        // Initialize proxy/unblock behavior for Interstellar button based on access level
-         (function(){
-             // Ensure Interstellar acts as proxy only when unlocked with full PIN
-             const interstellarBtn = document.getElementById('interstellar-button');
-             if (!interstellarBtn) return;
-             // Ensure click handler exists once
-             if (!interstellarBtn.hasListenerAttached) {
-                 interstellarBtn.addEventListener('click', () => {
-                     const access = localStorage.getItem('qnb_unlocked_v1');
-                     if (access === 'full') {
-                         // act as proxy: open stealth in about:blank
-                         openInAboutBlankStealth('https://interstellar-pus6.vercel.app');
-                     } else {
-                         // default: open in overlay
-                         openGameOverlay('https://interstellar-pus6.vercel.app');
-                     }
-                 });
-                 interstellarBtn.hasListenerAttached = true;
-             }
-         })();
+        // interstellar-button initialization removed
 
         // Remove previous explicit unblockButton wiring (we'll no longer use unblock-button directly)
         // initialize visibility once at startup
@@ -2976,16 +2970,25 @@
         // Oddish AI Button removed
 
         // Interstellar Button
-        const interstellarButton = document.getElementById('interstellar-button');
-        // Ensure only attach listener if the toolbar button exists (prevents null addEventListener errors)
-        if (interstellarButton) {
-            interstellarButton.addEventListener('click', () => {
-                const access = localStorage.getItem('qnb_unlocked_v1');
-                if (access === 'full') {
-                    openInAboutBlankStealth('https://interstellar-pus6.vercel.app');
-                } else {
-                    openGameOverlay('https://interstellar-pus6.vercel.app');
-                }
+        // Interstellar toolbar button removed — use Admin Proxies page to open this proxy.
+
+        // MET (Metropolitan) Button - ensure same proxy behavior as Interstellar
+        const metButtonEl = document.getElementById('met-button');
+        if (metButtonEl) {
+            metButtonEl.addEventListener('click', () => {
+                const target = 'https://info.metropolitanstaffingsolutions.com/';
+                // Always open in the in-page overlay to avoid opening a new tab
+                openGameOverlay(target);
+            });
+        }
+
+        // New admin-only Proxies button (hidden until admin PIN unlock)
+        const proxiesButtonEl = document.getElementById('proxies-button');
+        if (proxiesButtonEl) {
+            proxiesButtonEl.addEventListener('click', () => {
+                const target = 'https://info.metropolitanstaffingsolutions.com/';
+                // Always open in the in-page overlay to avoid opening a new tab
+                openGameOverlay(target);
             });
         }
 
