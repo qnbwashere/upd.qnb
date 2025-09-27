@@ -2485,12 +2485,25 @@
             const clientVisitCountElement = document.getElementById('client-visit-count');
             const VISIT_COUNT_KEY = 'kermit_local_visit_count';
 
-            function incrementClientVisitCount() {
-                let count = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
-                // Increment every time the site is opened, even by the same person
-                count++;
-                localStorage.setItem(VISIT_COUNT_KEY, count);
-                clientVisitCountElement.textContent = count;
+            async function incrementClientVisitCount() {
+                try {
+                    // Use CountAPI to maintain a shared counter across all visitors (no server required)
+                    const namespace = 'qnb-github-pages';
+                    const key = 'total-visits';
+                    const res = await fetch(`https://api.countapi.xyz/hit/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`);
+                    if (!res.ok) throw new Error('CountAPI hit failed');
+                    const data = await res.json();
+                    // data.value contains the global count
+                    clientVisitCountElement.textContent = data.value;
+                    // keep a small local marker so a single user doesn't increment repeatedly on rapid reloads
+                    try { localStorage.setItem(VISIT_COUNT_KEY, String(Date.now())); } catch(e){}
+                } catch (err) {
+                    // Fallback to a local-only increment if CountAPI is unreachable
+                    let count = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
+                    count++;
+                    localStorage.setItem(VISIT_COUNT_KEY, count);
+                    clientVisitCountElement.textContent = count;
+                }
             }
 
             incrementClientVisitCount(); // Call on page load
