@@ -1560,6 +1560,17 @@
 
         <main>
           <div class="section">
+            <h2>Added Proxies</h2>
+            <div class="links">
+              <a href="https://rutgerslineup.emtbiceland.is/">https://rutgerslineup.emtbiceland.is/</a>
+              <a href="https://espanolmath.ontariobsd.net/">https://espanolmath.ontariobsd.net/</a>
+              <a href="https://mrjohnjohn.follobusiness.com/">https://mrjohnjohn.follobusiness.com/</a>
+              <a href="https://home-to-many-school-boards.zirann.com/">https://home-to-many-school-boards.zirann.com/</a>
+              <a href="https://veryvery.badrag.net/">https://veryvery.badrag.net/</a>
+            </div>
+          </div>
+
+          <div class="section">
             <h2>Ghost Proxies (sample)</h2>
             <div class="links">
               <a href="https://nirbytesghost.clienturl.net/">https://nirbytesghost.clienturl.net/</a>
@@ -1635,11 +1646,16 @@
             <h2>DayDream X / SPACE / DOGE / BOLT / Freedom / Misc (sample)</h2>
             <div class="links">
               <a href="https://chromebookuserxdixo.synoserver.com">https://chromebookuserxdixo.synoserver.com</a>
+              <a href="https://piie.advanced-orchestra.site/">https://piie.advanced-orchestra.site/</a>
               <a href="https://embranxeo.host2go.net">https://embranxeo.host2go.net</a>
               <a href="https://nirbytes_dogeproxy.fpr.net">https://nirbytes_dogeproxy.fpr.net</a>
-              <a href="https://bootnbo.baselinux.net">https://bootnbo.baselinux.net</a>
-              <a href="https://weather.meteorological.co/">https://weather.meteorological.co/</a>
-              <a href="https://info.metropolitanstaffingsolutions.com/">https://info.metropolitanstaffingsolutions.com/</a>
+              <a href="https://buy.machines.asia/">https://buy.machines.asia/</a>
+              <a href="https://joe-goldberg-is-so-tuff.just-like-dexter-morgan.ev73.ru/">https://joe-goldberg-is-so-tuff.just-like-dexter-morgan.ev73.ru/</a>
+              <a href="https://game.spynick.com/">https://game.spynick.com/</a>
+              <a href="https://pizzaiscool.codehs.me/">https://pizzaiscool.codehs.me/</a>
+              <a href="https://ajh.politechnika-nova.edu.pl/">https://ajh.politechnika-nova.edu.pl/</a>
+              <a href="https://its-spatter.blood-spatter.tcm-studios.info/">https://its-spatter.blood-spatter.tcm-studios.info/</a>
+              <a href="https://welcome.teamoptimization.com/">https://welcome.teamoptimization.com/</a>
               <a href="https://interstellar-pus6.vercel.app">https://interstellar-pus6.vercel.app</a>
               <a href="https://free-stream-five.vercel.app">https://free-stream-five.vercel.app</a>
             </div>
@@ -1653,18 +1669,104 @@
 
         <script>
           // When embedded via srcdoc, links should ask parent to open in overlay; if running standalone, behave normally.
-          document.addEventListener('click', function(e){
-            const a = e.target.closest('a');
-            if (!a) return;
-            const href = a.href;
-            if (!href) return;
-            e.preventDefault();
-            if (window.parent && window.parent !== window) {
-              window.parent.postMessage({ type: 'openOverlay', url: href }, '*');
-            } else {
-              window.location.href = href;
+          (function(){
+            function handleClick(e){
+              const a = e.target.closest('a');
+              if (!a) return;
+              const href = a.href;
+              if (!href) return;
+              e.preventDefault();
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'openOverlay', url: href }, '*');
+              } else {
+                window.location.href = href;
+              }
             }
-          }, true);
+            document.addEventListener('click', handleClick, true);
+
+            // Add Try Category buttons inside the srcdoc template as well (same behavior as in proxies.html)
+            function addTryButtons() {
+              document.querySelectorAll('.section').forEach(section => {
+                if (section.querySelector('.try-category-btn')) return;
+                const links = Array.from(section.querySelectorAll('.links a')).map(a => a.getAttribute('href')).filter(Boolean);
+                if (!links.length) return;
+                const btn = document.createElement('button');
+                btn.textContent = 'Try Category';
+                btn.className = 'try-category-btn';
+                btn.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:6px;border:2px solid var(--accent);background:transparent;color:var(--text);cursor:pointer;';
+                section.appendChild(btn);
+                
+                // apply persisted status colors on init
+                links.forEach(u=>{
+                  const a = section.querySelector(`.links a[href="${u}"]`);
+                  const s = localStorage.getItem('proxyStatus:'+u);
+                  if (a && s === 'ok') a.style.color = '#61d36a';
+                  if (a && s === 'fail') a.style.color = '#ff6b6b';
+                });
+                
+                let abort = false;
+                btn.addEventListener('click', async () => {
+                  if (btn.dataset.running === '1') { abort = true; btn.dataset.running = ''; btn.textContent = 'Try Category'; return; }
+                  abort = false;
+                  btn.dataset.running = '1';
+                  btn.textContent = 'Trying... (click to stop)';
+
+                  const tryOnce = async (url, timeout = 3000) => {
+                    // Use hidden iframe probe: many proxy sites block XHR/CORS but still load in a frame.
+                    return await new Promise(resolve => {
+                      const iframe = document.createElement('iframe');
+                      iframe.style.cssText = 'position:fixed;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+                      let settled = false;
+                      const clean = (ok) => {
+                        if (settled) return;
+                        settled = true;
+                        try { iframe.remove(); } catch(e){}
+                        resolve(ok);
+                      };
+                      const timer = setTimeout(() => clean(false), timeout);
+                      iframe.onload = () => { clearTimeout(timer); clean(true); };
+                      iframe.onerror = () => { clearTimeout(timer); clean(false); };
+                      // Some sites may refuse to load in an iframe with X-Frame-Options; that triggers error.
+                      document.body.appendChild(iframe);
+                      try { iframe.src = url; } catch(e) { clearTimeout(timer); clean(false); }
+                    });
+                  };
+
+                  while (!abort) {
+                    for (const url of links) {
+                      if (abort) break;
+                      btn.textContent = `Trying: ${url}`;
+                      const ok = await tryOnce(url, 3000);
+                      const linkEl = section.querySelector(`.links a[href="${url}"]`);
+                      if (ok) {
+                        // mark success persistently and visually
+                        try { localStorage.setItem('proxyStatus:'+url,'ok'); } catch(e) {}
+                        if (linkEl) linkEl.style.color = '#61d36a';
+                        if (window.parent && window.parent !== window) {
+                          window.parent.postMessage({ type: 'openOverlay', url }, '*');
+                        } else {
+                          window.location.href = url;
+                        }
+                        abort = true;
+                        break;
+                      }
+                      // mark transient failure (until a success overwrites it)
+                      try { localStorage.setItem('proxyStatus:'+url,'fail'); } catch(e) {}
+                      if (linkEl) linkEl.style.color = '#ff6b6b';
+                      await new Promise(r => setTimeout(r, 700));
+                    }
+                    if (!abort) await new Promise(r => setTimeout(r, 1200));
+                  }
+                  btn.dataset.running = '';
+                  btn.textContent = 'Try Category';
+                });
+              });
+            }
+            // Wait for DOM ready inside the template
+            document.addEventListener('DOMContentLoaded', addTryButtons);
+            // Also attempt to add after a short delay in case content injected later
+            setTimeout(addTryButtons, 300);
+          })();
         </script>
       </body>
       </html>
