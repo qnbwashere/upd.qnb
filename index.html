@@ -308,6 +308,25 @@
             margin-top: 0; 
         }
 
+        /* Place the "Show more" button directly under the search results */
+        #search-show-more {
+            /* Make the button flow normally so it sits immediately below the results list */
+            position: relative;
+            left: unset;
+            transform: none;
+            top: unset;
+            z-index: 30;
+            display: none;
+            border: 2px solid var(--primary-color);
+            background: transparent;
+            color: var(--primary-color);
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 8px auto 0;
+            text-align: center;
+        }
+
         .search-container:focus-within #search-bar-results-wrapper { 
             width: 60%;
             max-width: 700px;
@@ -1404,11 +1423,16 @@
         <div id="search-bar-results-wrapper">
             <input type="text" id="search-bar" placeholder="Search for a game...">
             <div id="search-results"></div>
+            <button id="search-show-more" style="display:none;margin-top:8px;border:2px solid var(--primary-color);background:transparent;color:var(--primary-color);padding:8px 12px;border-radius:12px;cursor:pointer;">Show more</button>
         </div>
         
         <div style="display: flex; gap: 15px; margin-top: 15px; justify-content: center;">
             <button id="live-tv-button" title="Live TV" style="background: none; border: 3px solid var(--primary-color); border-radius: 12px; padding: 8px 12px; min-width: 64px; height: 50px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background-color: rgba(0, 0, 0, 0.6); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);">
                 <span class="btn-label" style="font-size:11px; color:var(--primary-color); line-height:1; text-align:center;">Live TV</span>
+            </button>
+            
+            <button id="browse-games-btn" title="Browse Games" style="background: none; border: 3px solid var(--primary-color); border-radius: 12px; padding: 8px 12px; min-width: 64px; height: 50px; display: flex; align-items:center; justify-content:center; cursor: pointer;">
+                <span class="btn-label" style="font-size:11px; color:var(--primary-color);">Browse Games</span>
             </button>
             
             <!-- interstellar-button removed -->
@@ -1421,6 +1445,16 @@
             <!-- Oddish AI button removed -->
             
             <!-- Interstellar moved into search results (no dedicated button in the toolbar) -->
+        </div>
+    </div>
+
+    <div id="search-more-modal" style="display:none;position:fixed;inset:0;z-index:4500;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);">
+        <div style="max-width:760px;margin:6vh auto;background:rgba(0,0,0,0.95);border:4px solid var(--primary-color);border-radius:12px;overflow:hidden;height:70vh;display:flex;flex-direction:column;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:2px solid rgba(255,255,255,0.03);">
+                <div style="color:var(--primary-color);font-family:'PixelOperator-Bold',sans-serif;">Search results</div>
+                <button id="close-search-more" style="background:transparent;border:2px solid var(--primary-color);color:var(--primary-color);padding:6px 10px;border-radius:8px;cursor:pointer;">Close</button>
+            </div>
+            <div id="search-more-list" style="padding:12px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:8px;"></div>
         </div>
     </div>
 
@@ -1771,6 +1805,18 @@
       </body>
       </html>
     </template>
+
+    <div id="games-browser-modal" aria-hidden="true" style="position:fixed;inset:0;display:none;z-index:4000;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);">
+        <div style="max-width:900px;margin:6vh auto;background:rgba(0,0,0,0.95);border:4px solid var(--primary-color);border-radius:12px;overflow:hidden;height:80vh;display:flex;flex-direction:column;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:2px solid rgba(255,255,255,0.03);">
+                <div style="color:var(--primary-color);font-family:'PixelOperator-Bold',sans-serif;">Browse Games</div>
+                <button id="close-games-browser" style="background:transparent;border:2px solid var(--primary-color);color:var(--primary-color);padding:6px 10px;border-radius:8px;cursor:pointer;">Close</button>
+            </div>
+            <div id="games-list-scroll" style="padding:12px;overflow:auto;flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
+                <!-- populated by JS -->
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="./index.js"></script>
 
@@ -3000,7 +3046,8 @@
             'steak and jake': 'https://k-web-topaz.vercel.app/games/steakandjake/index.html',
             'steak and jake midnight march': 'https://k-web-topaz.vercel.app/games/steakandjakemidnightmarch/index.html',
             'goldeneye 007': 'https://k-web-topaz.vercel.app/games/goldeneye007/',
-            'craftmine': 'https://3kh0-lite-rose.vercel.app/projects/craftmine/index.html'
+            'craftmine': 'https://3kh0-lite-rose.vercel.app/projects/craftmine/index.html',
+            'plinko': 'https://plinko-game-online.github.io/'
         };
 
         const unblockButton = document.getElementById('unblock-button');
@@ -3221,6 +3268,46 @@
         liveTvButton.addEventListener('click', () => {
             openGameOverlay('https://free-stream-five.vercel.app');
         });
+       
+       // Browse Games: open modal and populate list
+       const browseBtn = document.getElementById('browse-games-btn');
+       const gamesModal = document.getElementById('games-browser-modal');
+       const gamesListScroll = document.getElementById('games-list-scroll');
+       const closeGamesBtn = document.getElementById('close-games-browser');
+
+       function populateGamesBrowser() {
+           gamesListScroll.innerHTML = '';
+           Object.keys(gameData).sort().forEach(name => {
+               const urlOrSpecial = gameData[name];
+               const card = document.createElement('button');
+               card.style.cssText = 'background:rgba(255,255,255,0.02);border:2px solid rgba(255,255,255,0.02);color:var(--primary-color);padding:12px;border-radius:8px;text-align:left;cursor:pointer;font-family:PixelOperator-Bold,monospace;';
+               card.innerHTML = `<div style="font-size:13px;text-transform:capitalize;margin-bottom:6px;">${name}</div><div style="font-size:11px;color:var(--accent-grey)">${(typeof urlOrSpecial==='string'&&urlOrSpecial.startsWith('special:'))?urlOrSpecial:'Open'}</div>`;
+               card.addEventListener('click', () => {
+                   if (urlOrSpecial === 'special:interstellar') {
+                       const access = localStorage.getItem('qnb_unlocked_v1');
+                       if (access === 'full') openInAboutBlankStealth('https://interstellar-pus6.vercel.app');
+                       else openGameOverlay('https://interstellar-pus6.vercel.app');
+                   } else {
+                       openGameOverlay(urlOrSpecial);
+                   }
+               });
+               gamesListScroll.appendChild(card);
+           });
+       }
+
+       browseBtn.addEventListener('click', () => {
+           populateGamesBrowser();
+           gamesModal.style.display = 'block';
+           gamesModal.setAttribute('aria-hidden','false');
+           document.body.style.overflow = 'hidden';
+       });
+       closeGamesBtn.addEventListener('click', () => {
+           gamesModal.style.display = 'none';
+           gamesModal.setAttribute('aria-hidden','true');
+           document.body.style.overflow = '';
+       });
+       // close with Escape
+       document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gamesModal.style.display === 'block') { closeGamesBtn.click(); } });
 
         // Oddish AI Button removed
 
