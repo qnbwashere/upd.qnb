@@ -3297,6 +3297,20 @@
                });
                gamesListScroll.appendChild(card);
            });
+           // Ensure key external entries are present even if gameData mapping isn't loaded correctly
+           const ensureExtras = [
+               { name: 'bonk.io', url: 'https://bonk.io/' },
+               { name: 'tradingview', url: 'https://www.tradingview.com/' }
+           ];
+           ensureExtras.forEach(e=>{
+               if (!Object.prototype.hasOwnProperty.call(gameData, e.name)) {
+                   const card = document.createElement('button');
+                   card.style.cssText = 'background:rgba(255,255,255,0.02);border:2px solid rgba(255,255,255,0.02);color:var(--primary-color);padding:12px;border-radius:8px;text-align:left;cursor:pointer;font-family:PixelOperator-Bold,monospace;';
+                   card.innerHTML = `<div style="font-size:13px;text-transform:capitalize;margin-bottom:6px;">${e.name}</div><div style="font-size:11px;color:var(--accent-grey)">Open</div>`;
+                   card.addEventListener('click', ()=> openGameOverlay(e.url));
+                   gamesListScroll.appendChild(card);
+               }
+           });
        }
 
        browseBtn.addEventListener('click', () => {
