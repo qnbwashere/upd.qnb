@@ -13,6 +13,13 @@ const gameData = {
 };
 /* ...existing code... */
 
+// Ensure common aliases for search
+gameData['bonk'] = 'https://bonk.io/';
+gameData['bonk.io'] = 'https://bonk.io/';
+gameData['tradingview'] = 'https://www.tradingview.com/';
+gameData['trading view'] = 'https://www.tradingview.com/';
+gameData['tradingview.com'] = 'https://www.tradingview.com/';
+
 // Add common Pokémon titles to the gameData mapping
 gameData['pokemon red'] = 'https://k-web-topaz.vercel.app/games/pokemonred/index.html';
 gameData['pokemon blue'] = 'https://k-web-topaz.vercel.app/games/pokemonblue/index.html';
