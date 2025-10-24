@@ -1810,7 +1810,7 @@
             const GATE_KEY = 'qnb_unlocked_v1'; // persisted in localStorage so gate shows only once
             // Ensure the gate must be re-entered on every new page open by clearing any previous unlock flag
             try { localStorage.removeItem(GATE_KEY); } catch(e) { /* noop */ }
-            const LIMITED_PIN = '8956';
+            const LIMITED_PIN = '9000';
             const FULL_PIN = '8211';
             const pwGate = document.getElementById('pw-gate');
             const input = document.getElementById('pw-input');
